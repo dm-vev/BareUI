@@ -1,6 +1,6 @@
 CC := gcc
 CFLAGS := -std=c99 -Wall -Wextra -Iinclude -O2
-LDFLAGS := -pthread
+LDFLAGS := -pthread -lm
 
 SDL_CFLAGS := $(shell sdl2-config --cflags 2>/dev/null)
 SDL_LDFLAGS := $(shell sdl2-config --libs 2>/dev/null)

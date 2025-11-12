@@ -45,6 +45,11 @@ typedef struct {
     } data;
 } ui_event_t;
 
+typedef struct {
+    int16_t x;
+    int16_t y;
+} ui_point_t;
+
 typedef struct ui_context ui_context_t;
 
 typedef struct {
@@ -65,6 +70,10 @@ void ui_context_draw_codepoint(ui_context_t *ctx, int x, int y, uint32_t codepoi
                                ui_color_t color);
 void ui_context_draw_text(ui_context_t *ctx, int x, int y, const char *text,
                           ui_color_t color);
+void ui_context_draw_polygon(ui_context_t *ctx, const ui_point_t *points,
+                             size_t point_count, ui_color_t color);
+bool ui_context_blit(ui_context_t *ctx, const ui_color_t *src, int src_width,
+                     int src_height, int dst_x, int dst_y);
 
 bool ui_context_poll_event(ui_context_t *ctx, ui_event_t *event);
 bool ui_context_post_event(ui_context_t *ctx, const ui_event_t *event);

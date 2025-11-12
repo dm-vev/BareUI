@@ -1,5 +1,6 @@
 #include "ui_core.h"
 
+#include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -251,6 +252,40 @@ void ui_context_set_pixel(ui_context_t *ctx, int x, int y, ui_color_t color)
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
+bool ui_context_blit(ui_context_t *ctx, const ui_color_t *src, int src_width,
+                     int src_height, int dst_x, int dst_y)
+{
+    if (!ctx || !src || src_width <= 0 || src_height <= 0) {
+        return false;
+    }
+    int start_x = dst_x < 0 ? 0 : dst_x;
+    int start_y = dst_y < 0 ? 0 : dst_y;
+    int end_x = dst_x + src_width;
+    int end_y = dst_y + src_height;
+    if (end_x > UI_FRAMEBUFFER_WIDTH) {
+        end_x = UI_FRAMEBUFFER_WIDTH;
+    }
+    if (end_y > UI_FRAMEBUFFER_HEIGHT) {
+        end_y = UI_FRAMEBUFFER_HEIGHT;
+    }
+    if (start_x >= end_x || start_y >= end_y) {
+        return false;
+    }
+
+    int copy_width = end_x - start_x;
+    int copy_height = end_y - start_y;
+    pthread_mutex_lock(&ctx->fb_lock);
+    for (int row = 0; row < copy_height; ++row) {
+        const ui_color_t *src_row = src + (size_t)(start_y - dst_y + row) * src_width +
+                                   (start_x - dst_x);
+        ui_color_t *dst_row = &ctx->framebuffer[(start_y + row) * UI_FRAMEBUFFER_WIDTH + start_x];
+        memcpy(dst_row, src_row, copy_width * sizeof(ui_color_t));
+    }
+    ui_mark_dirty_locked(ctx, start_x, start_y, copy_width, copy_height);
+    pthread_mutex_unlock(&ctx->fb_lock);
+    return true;
+}
+
 void ui_context_draw_codepoint(ui_context_t *ctx, int x, int y, uint32_t codepoint,
                                ui_color_t color)
 {
@@ -300,6 +335,119 @@ void ui_context_draw_text(ui_context_t *ctx, int x, int y, const char *text,
         pthread_mutex_unlock(&ctx->fb_lock);
         cursor += glyph.spacing;
     }
+}
+
+void ui_context_draw_polygon(ui_context_t *ctx, const ui_point_t *points,
+                             size_t point_count, ui_color_t color)
+{
+    if (!ctx || !points || point_count < 3) {
+        return;
+    }
+
+    int min_y = UI_FRAMEBUFFER_HEIGHT;
+    int max_y = -1;
+    for (size_t i = 0; i < point_count; ++i) {
+        int y = points[i].y;
+        if (y < min_y) {
+            min_y = y;
+        }
+        if (y > max_y) {
+            max_y = y;
+        }
+    }
+    if (max_y < 0 || min_y >= UI_FRAMEBUFFER_HEIGHT) {
+        return;
+    }
+    int start_y = min_y < 0 ? 0 : min_y;
+    int end_y = max_y >= UI_FRAMEBUFFER_HEIGHT ? UI_FRAMEBUFFER_HEIGHT - 1 : max_y;
+
+    double *intersections = (double *)malloc(point_count * sizeof(double));
+    if (!intersections) {
+        return;
+    }
+
+    int filled_min_x = UI_FRAMEBUFFER_WIDTH;
+    int filled_max_x = -1;
+    int filled_min_y = UI_FRAMEBUFFER_HEIGHT;
+    int filled_max_y = -1;
+
+    pthread_mutex_lock(&ctx->fb_lock);
+    for (int y = start_y; y <= end_y; ++y) {
+        double scan_y = (double)y + 0.5;
+        size_t hits = 0;
+        for (size_t i = 0; i < point_count; ++i) {
+            const ui_point_t *p0 = &points[i];
+            const ui_point_t *p1 = &points[(i + 1) % point_count];
+            int y0 = p0->y;
+            int y1 = p1->y;
+            if (y0 == y1) {
+                continue;
+            }
+            int lower = y0 < y1 ? y0 : y1;
+            int upper = y0 < y1 ? y1 : y0;
+            if (scan_y <= lower || scan_y >= upper) {
+                continue;
+            }
+            double dx = (double)p1->x - (double)p0->x;
+            double dy = (double)(y1 - y0);
+            intersections[hits++] = (double)p0->x + (scan_y - (double)y0) * dx / dy;
+        }
+        if ((hits & 1) != 0) {
+            hits--;
+        }
+        if (hits < 2) {
+            continue;
+        }
+        for (size_t i = 1; i < hits; ++i) {
+            double key = intersections[i];
+            size_t j = i;
+            while (j > 0 && intersections[j - 1] > key) {
+                intersections[j] = intersections[j - 1];
+                --j;
+            }
+            intersections[j] = key;
+        }
+        for (size_t i = 0; i + 1 < hits; i += 2) {
+            int x_start = (int)floor(intersections[i] + 0.5);
+            int x_end = (int)floor(intersections[i + 1] + 0.5);
+            if (x_start > x_end) {
+                int temp = x_start;
+                x_start = x_end;
+                x_end = temp;
+            }
+            if (x_end < 0 || x_start >= UI_FRAMEBUFFER_WIDTH) {
+                continue;
+            }
+            if (x_start < 0) {
+                x_start = 0;
+            }
+            if (x_end >= UI_FRAMEBUFFER_WIDTH) {
+                x_end = UI_FRAMEBUFFER_WIDTH - 1;
+            }
+            for (int x = x_start; x <= x_end; ++x) {
+                ui_set_pixel_locked(ctx, x, y, color);
+            }
+            if (x_start < filled_min_x) {
+                filled_min_x = x_start;
+            }
+            if (x_end > filled_max_x) {
+                filled_max_x = x_end;
+            }
+            if (y < filled_min_y) {
+                filled_min_y = y;
+            }
+            if (y > filled_max_y) {
+                filled_max_y = y;
+            }
+        }
+    }
+    if (filled_min_x <= filled_max_x && filled_min_y <= filled_max_y) {
+        ui_mark_dirty_locked(ctx, filled_min_x, filled_min_y,
+                             filled_max_x - filled_min_x + 1,
+                             filled_max_y - filled_min_y + 1);
+    }
+    pthread_mutex_unlock(&ctx->fb_lock);
+    free(intersections);
 }
 
 bool ui_context_poll_event(ui_context_t *ctx, ui_event_t *event)
