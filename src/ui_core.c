@@ -174,6 +174,7 @@ ui_context_t *ui_context_create(const ui_hal_ops_t *hal)
     ctx->hal = hal;
     ctx->user_data = hal->user_data;
     ctx->font = bareui_font_default();
+    ui_reset_dirty(ctx);
 
     if (!hal->init(ctx)) {
         pthread_mutex_destroy(&ctx->ev_lock);
@@ -207,6 +208,7 @@ void ui_context_clear(ui_context_t *ctx, ui_color_t color)
     for (size_t i = 0; i < UI_FRAMEBUFFER_WIDTH * UI_FRAMEBUFFER_HEIGHT; ++i) {
         ctx->framebuffer[i] = color;
     }
+    ui_mark_dirty_locked(ctx, 0, 0, UI_FRAMEBUFFER_WIDTH, UI_FRAMEBUFFER_HEIGHT);
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
@@ -234,6 +236,7 @@ void ui_context_fill_rect(ui_context_t *ctx, int x, int y, int width, int height
             *base++ = color;
         }
     }
+    ui_mark_dirty_locked(ctx, x0, y0, x1 - x0, y1 - y0);
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
@@ -244,6 +247,7 @@ void ui_context_set_pixel(ui_context_t *ctx, int x, int y, ui_color_t color)
     }
     pthread_mutex_lock(&ctx->fb_lock);
     ui_set_pixel_locked(ctx, x, y, color);
+    ui_mark_dirty_locked(ctx, x, y, 1, 1);
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
@@ -338,7 +342,10 @@ void ui_context_render(ui_context_t *ctx)
         return;
     }
     pthread_mutex_lock(&ctx->fb_lock);
-    ctx->hal->commit_frame(ctx, ctx->framebuffer);
+    if (ctx->dirty) {
+        ctx->hal->commit_frame(ctx, ctx->framebuffer);
+        ui_reset_dirty(ctx);
+    }
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
