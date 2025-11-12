@@ -51,17 +51,18 @@ int main(void)
 
         ui_context_clear(ctx, ui_color_from_hex(0x0B1622));
         ui_context_fill_rect(ctx, 16, 16, 288, 104, ui_color_from_hex(0x162B47));
-        ui_context_draw_text(ctx, 28, 26, "Platform-neutral UI test", ui_color_from_hex(0xE0F4FF));
-        ui_context_draw_text(ctx, 28, 40, "Click or tap around the window.", ui_color_from_hex(0xB8D9FF));
-        ui_context_draw_text(ctx, 28, 54, "Press q to exit (Esc works too).", ui_color_from_hex(0x90B6FF));
+        ui_context_draw_text(ctx, 28, 26, "BareUI demo window", ui_color_from_hex(0xE0F4FF));
+        ui_context_draw_text(ctx, 28, 40, "ASCII: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz 0123456789", ui_color_from_hex(0xB8D9FF));
+        ui_context_draw_text(ctx, 28, 54, "КИРИЛЛИЦА: АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ абвгдеёжзийклмнопрстуфхцчшщъыьэюя", ui_color_from_hex(0x90B6FF));
 
         char coords[64];
         if (last_x >= 0 && last_y >= 0) {
-            snprintf(coords, sizeof(coords), "Last touch: %3d, %3d", last_x, last_y);
+            snprintf(coords, sizeof(coords), "Последний тач: %3d, %3d", last_x, last_y);
         } else {
-            snprintf(coords, sizeof(coords), "Last touch: - , -");
+            snprintf(coords, sizeof(coords), "Последний тач: - , -");
         }
         ui_context_draw_text(ctx, 28, 80, coords, ui_color_from_hex(0xF0F0F0));
+        ui_context_draw_text(ctx, 28, 94, "Проверка кириллицы: Буквы здесь.", ui_color_from_hex(0xF0F0F0));
 
         if (last_x >= 0 && last_y >= 0) {
             ui_color_t indicator = pressed ? ui_color_from_hex(0xFF5F3E) : ui_color_from_hex(0x2CE4A0);

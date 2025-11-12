@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+/* ASCII 5x7 fast path disabled for now; rely on font lookup */
 
 #define UI_EVENT_QUEUE_SIZE 128
 
@@ -15,40 +16,12 @@ struct ui_context {
     size_t ev_count;
     const ui_hal_ops_t *hal;
     void *user_data;
-};
-
-static const uint8_t font5x7[95][5] = {
-    {0x00,0x00,0x00,0x00,0x00}, {0x00,0x00,0x5F,0x00,0x00}, {0x00,0x07,0x00,0x07,0x00},
-    {0x14,0x7F,0x14,0x7F,0x14}, {0x24,0x2A,0x7F,0x2A,0x12}, {0x23,0x13,0x08,0x64,0x62},
-    {0x36,0x49,0x55,0x22,0x50}, {0x00,0x05,0x03,0x00,0x00}, {0x00,0x1C,0x22,0x41,0x00},
-    {0x00,0x41,0x22,0x1C,0x00}, {0x14,0x08,0x3E,0x08,0x14}, {0x08,0x08,0x3E,0x08,0x08},
-    {0x00,0x50,0x30,0x00,0x00}, {0x08,0x08,0x08,0x08,0x08}, {0x60,0x60,0x00,0x00,0x00},
-    {0x20,0x10,0x08,0x04,0x02}, {0x3E,0x51,0x49,0x45,0x3E}, {0x00,0x42,0x7F,0x40,0x00},
-    {0x72,0x49,0x49,0x49,0x46}, {0x21,0x41,0x49,0x4D,0x33}, {0x18,0x14,0x12,0x7F,0x10},
-    {0x27,0x45,0x45,0x45,0x39}, {0x3C,0x4A,0x49,0x49,0x31}, {0x41,0x21,0x11,0x09,0x07},
-    {0x36,0x49,0x49,0x49,0x36}, {0x46,0x49,0x49,0x29,0x1E}, {0x00,0x36,0x36,0x00,0x00},
-    {0x00,0x56,0x36,0x00,0x00}, {0x08,0x14,0x22,0x41,0x00}, {0x14,0x14,0x14,0x14,0x14},
-    {0x00,0x41,0x22,0x14,0x08}, {0x02,0x01,0x59,0x09,0x06}, {0x3E,0x41,0x5D,0x59,0x4E},
-    {0x7C,0x12,0x11,0x12,0x7C}, {0x7F,0x49,0x49,0x49,0x36}, {0x3E,0x41,0x41,0x41,0x22},
-    {0x7F,0x41,0x41,0x22,0x1C}, {0x7F,0x49,0x49,0x49,0x41}, {0x7F,0x09,0x09,0x09,0x01},
-    {0x3E,0x41,0x49,0x49,0x7A}, {0x7F,0x08,0x08,0x08,0x7F}, {0x00,0x41,0x7F,0x41,0x00},
-    {0x20,0x40,0x41,0x3F,0x01}, {0x7F,0x08,0x14,0x22,0x41}, {0x7F,0x40,0x40,0x40,0x40},
-    {0x7F,0x02,0x0C,0x02,0x7F}, {0x3E,0x41,0x41,0x41,0x3E}, {0x7F,0x09,0x09,0x09,0x06},
-    {0x3E,0x41,0x51,0x21,0x5E}, {0x7F,0x09,0x19,0x29,0x46}, {0x46,0x49,0x49,0x49,0x31},
-    {0x01,0x01,0x7F,0x01,0x01}, {0x3F,0x40,0x40,0x40,0x3F}, {0x1F,0x20,0x40,0x20,0x1F},
-    {0x3F,0x40,0x38,0x40,0x3F}, {0x63,0x14,0x08,0x14,0x63}, {0x07,0x08,0x70,0x08,0x07},
-    {0x61,0x51,0x49,0x45,0x43}, {0x00,0x7F,0x41,0x41,0x00}, {0x02,0x04,0x08,0x10,0x20},
-    {0x00,0x41,0x41,0x7F,0x00}, {0x04,0x02,0x01,0x02,0x04}, {0x40,0x40,0x40,0x40,0x40},
-    {0x00,0x01,0x02,0x04,0x00}, {0x20,0x54,0x54,0x54,0x78}, {0x7F,0x48,0x44,0x44,0x38},
-    {0x38,0x44,0x44,0x44,0x20}, {0x38,0x44,0x44,0x48,0x7F}, {0x38,0x54,0x54,0x54,0x18},
-    {0x08,0x7E,0x09,0x01,0x02}, {0x0C,0x52,0x52,0x52,0x3E}, {0x7F,0x08,0x04,0x04,0x78},
-    {0x00,0x44,0x7D,0x40,0x00}, {0x20,0x40,0x44,0x3D,0x00}, {0x7F,0x10,0x28,0x44,0x00},
-    {0x00,0x41,0x7F,0x40,0x00}, {0x7C,0x04,0x18,0x04,0x78}, {0x38,0x44,0x44,0x44,0x38},
-    {0x7C,0x14,0x14,0x14,0x08}, {0x08,0x14,0x14,0x18,0x7C}, {0x7C,0x08,0x04,0x04,0x08},
-    {0x48,0x54,0x54,0x54,0x20}, {0x04,0x3F,0x44,0x40,0x20}, {0x3C,0x40,0x40,0x20,0x7C},
-    {0x1C,0x20,0x40,0x20,0x1C}, {0x3C,0x40,0x30,0x40,0x3C}, {0x44,0x28,0x10,0x28,0x44},
-    {0x0C,0x50,0x50,0x50,0x3C}, {0x44,0x64,0x54,0x4C,0x44}, {0x00,0x08,0x36,0x41,0x00},
-    {0x00,0x00,0x7F,0x00,0x00}, {0x00,0x41,0x36,0x08,0x00}, {0x10,0x08,0x08,0x10,0x08}
+    const bareui_font_t *font;
+    bool dirty;
+    int dirty_min_x;
+    int dirty_min_y;
+    int dirty_max_x;
+    int dirty_max_y;
 };
 
 static inline void ui_set_pixel_locked(ui_context_t *ctx, int x, int y, ui_color_t color)
@@ -58,6 +31,129 @@ static inline void ui_set_pixel_locked(ui_context_t *ctx, int x, int y, ui_color
     }
     ctx->framebuffer[y * UI_FRAMEBUFFER_WIDTH + x] = color;
 }
+
+static void ui_reset_dirty(ui_context_t *ctx)
+{
+    ctx->dirty = false;
+    ctx->dirty_min_x = UI_FRAMEBUFFER_WIDTH;
+    ctx->dirty_min_y = UI_FRAMEBUFFER_HEIGHT;
+    ctx->dirty_max_x = 0;
+    ctx->dirty_max_y = 0;
+}
+
+static void ui_mark_dirty_locked(ui_context_t *ctx, int x, int y, int width, int height)
+{
+    if (!ctx || width <= 0 || height <= 0) {
+        return;
+    }
+    int x0 = x < 0 ? 0 : x;
+    int y0 = y < 0 ? 0 : y;
+    int x1 = x + width;
+    int y1 = y + height;
+    if (x1 > UI_FRAMEBUFFER_WIDTH) {
+        x1 = UI_FRAMEBUFFER_WIDTH;
+    }
+    if (y1 > UI_FRAMEBUFFER_HEIGHT) {
+        y1 = UI_FRAMEBUFFER_HEIGHT;
+    }
+    if (x0 >= x1 || y0 >= y1) {
+        return;
+    }
+    if (!ctx->dirty) {
+        ctx->dirty = true;
+        ctx->dirty_min_x = x0;
+        ctx->dirty_min_y = y0;
+        ctx->dirty_max_x = x1;
+        ctx->dirty_max_y = y1;
+        return;
+    }
+    if (x0 < ctx->dirty_min_x) {
+        ctx->dirty_min_x = x0;
+    }
+    if (y0 < ctx->dirty_min_y) {
+        ctx->dirty_min_y = y0;
+    }
+    if (x1 > ctx->dirty_max_x) {
+        ctx->dirty_max_x = x1;
+    }
+    if (y1 > ctx->dirty_max_y) {
+        ctx->dirty_max_y = y1;
+    }
+}
+
+static bool ui_next_codepoint(const char **text, uint32_t *out)
+{
+    if (!text || !*text || !out) {
+        return false;
+    }
+    const unsigned char *ptr = (const unsigned char *)*text;
+    uint32_t cp = *ptr++;
+    if (cp < 0x80) {
+        *out = cp;
+        *text = (const char *)ptr;
+        return true;
+    }
+
+    int extra = 0;
+    if ((cp & 0xE0) == 0xC0) {
+        cp &= 0x1F;
+        extra = 1;
+    } else if ((cp & 0xF0) == 0xE0) {
+        cp &= 0x0F;
+        extra = 2;
+    } else if ((cp & 0xF8) == 0xF0) {
+        cp &= 0x07;
+        extra = 3;
+    } else {
+        return false;
+    }
+
+    for (int i = 0; i < extra; ++i) {
+        if ((ptr[i] & 0xC0) != 0x80) {
+            return false;
+        }
+        cp = (cp << 6) | (ptr[i] & 0x3F);
+    }
+
+    *text = (const char *)(ptr + extra);
+    *out = cp;
+    return true;
+}
+
+static bool ui_context_get_glyph(ui_context_t *ctx, uint32_t codepoint,
+                                 bareui_font_glyph_t *glyph)
+{
+    if (!ctx || !glyph || !ctx->font) {
+        return false;
+    }
+    if (bareui_font_lookup(ctx->font, codepoint, glyph)) {
+        return true;
+    }
+    if (codepoint != '?') {
+        return bareui_font_lookup(ctx->font, '?', glyph);
+    }
+    return false;
+}
+
+static void ui_draw_glyph_locked(ui_context_t *ctx, int x, int y,
+                                 const bareui_font_glyph_t *glyph, ui_color_t color)
+{
+    if (!ctx || !glyph || !glyph->columns) {
+        return;
+    }
+
+    for (uint8_t col = 0; col < glyph->width; ++col) {
+        uint8_t column = glyph->columns[col];
+        for (uint8_t row = 0; row < glyph->height; ++row) {
+            if (column & (1u << row)) {
+                ui_set_pixel_locked(ctx, x + col, y + row, color);
+            }
+        }
+    }
+    ui_mark_dirty_locked(ctx, x, y, glyph->width, glyph->height);
+}
+
+/* removed */
 
 ui_context_t *ui_context_create(const ui_hal_ops_t *hal)
 {
@@ -77,6 +173,7 @@ ui_context_t *ui_context_create(const ui_hal_ops_t *hal)
     ctx->ev_count = 0;
     ctx->hal = hal;
     ctx->user_data = hal->user_data;
+    ctx->font = bareui_font_default();
 
     if (!hal->init(ctx)) {
         pthread_mutex_destroy(&ctx->ev_lock);
@@ -150,33 +247,54 @@ void ui_context_set_pixel(ui_context_t *ctx, int x, int y, ui_color_t color)
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
-void ui_context_draw_char(ui_context_t *ctx, int x, int y, char ch, ui_color_t color)
+void ui_context_draw_codepoint(ui_context_t *ctx, int x, int y, uint32_t codepoint,
+                               ui_color_t color)
 {
-    if (!ctx || ch < 32 || ch > 126) {
+    if (!ctx) {
         return;
     }
-    const uint8_t *glyph = font5x7[ch - 32];
-    pthread_mutex_lock(&ctx->fb_lock);
-    for (int col = 0; col < 5; ++col) {
-        uint8_t column = glyph[col];
-        for (int row = 0; row < 7; ++row) {
-            if (column & (1 << row)) {
-                ui_set_pixel_locked(ctx, x + col, y + row, color);
-            }
-        }
+
+    bareui_font_glyph_t glyph;
+    if (!ui_context_get_glyph(ctx, codepoint, &glyph)) {
+        return;
     }
+
+    pthread_mutex_lock(&ctx->fb_lock);
+    ui_draw_glyph_locked(ctx, x, y, &glyph, color);
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
-void ui_context_draw_text(ui_context_t *ctx, int x, int y, const char *text, ui_color_t color)
+void ui_context_draw_text(ui_context_t *ctx, int x, int y, const char *text,
+                          ui_color_t color)
 {
     if (!ctx || !text) {
         return;
     }
+
     int cursor = x;
-    for (const char *p = text; *p; ++p) {
-        ui_context_draw_char(ctx, cursor, y, *p, color);
-        cursor += 6;
+    int baseline = y;
+    const char *ptr = text;
+    int line_height = (ctx->font ? ctx->font->height : BAREUI_FONT_HEIGHT) + 1;
+
+    while (*ptr) {
+        uint32_t codepoint;
+        if (!ui_next_codepoint(&ptr, &codepoint)) {
+            break;
+        }
+        if (codepoint == '\n') {
+            cursor = x;
+            baseline += line_height;
+            continue;
+        }
+
+        bareui_font_glyph_t glyph;
+        if (!ui_context_get_glyph(ctx, codepoint, &glyph)) {
+            continue;
+        }
+        pthread_mutex_lock(&ctx->fb_lock);
+        ui_draw_glyph_locked(ctx, cursor, baseline, &glyph, color);
+        pthread_mutex_unlock(&ctx->fb_lock);
+        cursor += glyph.spacing;
     }
 }
 
@@ -222,6 +340,18 @@ void ui_context_render(ui_context_t *ctx)
     pthread_mutex_lock(&ctx->fb_lock);
     ctx->hal->commit_frame(ctx, ctx->framebuffer);
     pthread_mutex_unlock(&ctx->fb_lock);
+}
+
+const bareui_font_t *ui_context_font(const ui_context_t *ctx)
+{
+    return ctx ? ctx->font : NULL;
+}
+
+void ui_context_set_font(ui_context_t *ctx, const bareui_font_t *font)
+{
+    if (ctx) {
+        ctx->font = font ? font : bareui_font_default();
+    }
 }
 
 void *ui_context_user_data(ui_context_t *ctx)

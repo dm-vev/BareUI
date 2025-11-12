@@ -84,7 +84,7 @@ static bool hal_sdl_init(ui_context_t *ctx)
         return false;
     }
 
-    state->window = SDL_CreateWindow("TouchWiz test",
+    state->window = SDL_CreateWindow("BareUI test",
                                      SDL_WINDOWPOS_CENTERED,
                                      SDL_WINDOWPOS_CENTERED,
                                      UI_TEST_WIDTH,

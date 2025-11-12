@@ -1,6 +1,8 @@
 #ifndef UI_CORE_H
 #define UI_CORE_H
 
+#include "ui_font.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -59,7 +61,8 @@ void ui_context_clear(ui_context_t *ctx, ui_color_t color);
 void ui_context_fill_rect(ui_context_t *ctx, int x, int y, int width, int height,
                           ui_color_t color);
 void ui_context_set_pixel(ui_context_t *ctx, int x, int y, ui_color_t color);
-void ui_context_draw_char(ui_context_t *ctx, int x, int y, char ch, ui_color_t color);
+void ui_context_draw_codepoint(ui_context_t *ctx, int x, int y, uint32_t codepoint,
+                               ui_color_t color);
 void ui_context_draw_text(ui_context_t *ctx, int x, int y, const char *text,
                           ui_color_t color);
 
@@ -72,5 +75,8 @@ void *ui_context_user_data(ui_context_t *ctx);
 void ui_context_set_user_data(ui_context_t *ctx, void *data);
 
 const ui_hal_ops_t *ui_context_hal(const ui_context_t *ctx);
+
+const bareui_font_t *ui_context_font(const ui_context_t *ctx);
+void ui_context_set_font(ui_context_t *ctx, const bareui_font_t *font);
 
 #endif

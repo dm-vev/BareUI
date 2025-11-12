@@ -18,7 +18,8 @@ TARGET := tests/main
 .PHONY: all clean
 all: $(TARGET)
 
-$(TARGET): src/ui_core.c src/hal/hal_test_sdl.c tests/main.c
+	# Build demo
+$(TARGET): src/ui_core.c src/ui_font.c src/ui_font_lores.c src/hal/hal_test_sdl.c tests/main.c
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(LDFLAGS) $(SDL_LDFLAGS)
 
 clean:
