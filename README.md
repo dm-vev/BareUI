@@ -21,6 +21,8 @@ Outlined buttons are medium-emphasis controls for actions that are important but
 ## Button styles
 `ui_button` может имитировать разные стили, но для повышения читаемости важно выбирать их правильно. Первичная кнопка — это заполненный фон (filled tonal) без лишних теней, а elevated-кнопка просто добавляет к ней аккуратную тень. Чтобы тень не "ползла" по интерфейсу, применяйте такие кнопки только тогда, когда элемент должен визуально отделиться от текстурированного или узорного фона.
 
+Filled buttons have the most visual impact after the FloatingActionButton and should be reserved for important, final actions such as Save, Join now, or Confirm. The `tests/main.c` showcase now adds a dedicated filled row with bold backgrounds, hover/pressed feedback, and a lift shadow to illustrate this pattern.
+
 ## Шрифтовая цепочка
 1. Откройте `tools/build_font.py`, укажите нужный TTF (`FONT_PATH`) и запустите `python tools/build_font.py > src/font/bareui_font_data.h` (нужен Python3 и библиотека Pillow).
 2. Векторный файл содержимого генерирует колонны 8×8 для каждого символа, включая `Ё/ё` и `А-Я/а-я`. Не забудьте перегенерировать шрифт после замены TTF или добавления символов.
