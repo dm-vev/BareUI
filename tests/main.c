@@ -1,6 +1,8 @@
 #include "ui_button.h"
+#include "ui_checkbox.h"
 #include "ui_column.h"
 #include "ui_progressring.h"
+#include "ui_progressbar.h"
 #include "ui_row.h"
 #include "ui_scene.h"
 #include "ui_text.h"
@@ -20,6 +22,9 @@ typedef struct {
     ui_text_t *detail;
     int color_index;
     double elapsed;
+    ui_progressbar_t *progress_determinate;
+    ui_progressbar_t *progress_indeterminate;
+    double progress_value;
 } app_state_t;
 
 static ui_text_t *make_text(const char *value, ui_color_t fg, ui_color_t bg)
@@ -38,6 +43,44 @@ static ui_text_t *make_text(const char *value, ui_color_t fg, ui_color_t bg)
     int text_height = BAREUI_FONT_HEIGHT * 2 + 8;
     ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, text_height);
     return text;
+}
+
+static ui_progressbar_t *make_progressbar(const char *tooltip, ui_color_t track, ui_color_t accent,
+                                          ui_color_t border, bool determinate)
+{
+    ui_progressbar_t *progress = ui_progressbar_create();
+    if (!progress) {
+        return NULL;
+    }
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = track;
+    style.foreground_color = accent;
+    style.accent_color = accent;
+    style.border_color = border;
+    style.border_width = 1;
+    style.border_sides = UI_BORDER_LEFT | UI_BORDER_RIGHT;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x050813);
+    style.box_shadow.offset_x = 0;
+    style.box_shadow.offset_y = 1;
+    style.box_shadow.blur_radius = 2;
+    style.box_shadow.spread_radius = 1;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES |
+                  UI_STYLE_FLAG_BOX_SHADOW;
+    ui_widget_set_style(ui_progressbar_widget_mutable(progress), &style);
+    ui_progressbar_set_bar_height(progress, 10);
+    ui_progressbar_set_border_radius(progress, ui_border_radius_all(6));
+    ui_progressbar_set_tooltip(progress, tooltip);
+    ui_progressbar_set_semantics_label(progress, tooltip);
+    if (determinate) {
+        ui_progressbar_set_value(progress, 0.0);
+    } else {
+        ui_progressbar_clear_value(progress);
+    }
+    return progress;
 }
 
 static ui_button_t *make_button(const char *label, int pad_h, int pad_v, int fixed_height)
@@ -167,6 +210,22 @@ static ui_button_t *make_outlined_button(const char *label, int pad_h, int pad_v
     return button;
 }
 
+static ui_checkbox_t *make_checkbox(const char *label)
+{
+    ui_checkbox_t *checkbox = ui_checkbox_create();
+    if (!checkbox) {
+        return NULL;
+    }
+    ui_checkbox_set_label(checkbox, label);
+    ui_checkbox_set_active_color(checkbox, ui_color_from_hex(0x7EAAFF));
+    ui_checkbox_set_fill_color(checkbox, ui_color_from_hex(0x0F121F));
+    ui_checkbox_set_border_color(checkbox, ui_color_from_hex(0xD8E7FF));
+    ui_checkbox_set_check_color(checkbox, ui_color_from_hex(0xF5F5FF));
+    ui_checkbox_set_hover_color(checkbox, ui_color_from_hex(0x1C223D));
+    ui_widget_set_bounds(ui_checkbox_widget_mutable(checkbox), 0, 0, 200, 32);
+    return checkbox;
+}
+
 static void apply_column_style(ui_column_t *column, ui_color_t background)
 {
     ui_style_t style;
@@ -240,6 +299,27 @@ static void on_theme_click(ui_button_t *button, void *user_data)
     update_action_detail(app, "Смена темы");
 }
 
+static void on_checkbox_change(ui_checkbox_t *checkbox, ui_checkbox_state_t state, void *user_data)
+{
+    app_state_t *app = user_data;
+    if (!app || !checkbox) {
+        return;
+    }
+    const char *label = ui_checkbox_label(checkbox);
+    const char *state_label;
+    if (state == UI_CHECKBOX_STATE_CHECKED) {
+        state_label = "включено";
+    } else if (state == UI_CHECKBOX_STATE_INDETERMINATE) {
+        state_label = "промежуточно";
+    } else {
+        state_label = "выключено";
+    }
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%s: %s", label ? label : "Checkbox", state_label);
+    update_status(app, buffer);
+    update_action_detail(app, label);
+}
+
 static bool app_tick(ui_scene_t *scene, double delta)
 {
     app_state_t *app = ui_scene_user_data(scene);
@@ -250,6 +330,13 @@ static bool app_tick(ui_scene_t *scene, double delta)
     char buffer[64];
     snprintf(buffer, sizeof(buffer), "Uptime %.1f s", app->elapsed);
     ui_text_set_value(app->clock, buffer);
+    if (app->progress_determinate) {
+        app->progress_value += delta * 0.22;
+        while (app->progress_value > 1.0) {
+            app->progress_value -= 1.0;
+        }
+        ui_progressbar_set_value(app->progress_determinate, app->progress_value);
+    }
     return true;
 }
 
@@ -273,6 +360,9 @@ int main(void)
         .detail = NULL,
         .color_index = 0,
         .elapsed = 0.0,
+        .progress_determinate = NULL,
+        .progress_indeterminate = NULL,
+        .progress_value = 0.0,
     };
 
     app.column = ui_column_create();
@@ -332,6 +422,20 @@ int main(void)
     ui_row_add_control(outlined_row, ui_button_widget_mutable(outlined_btn), true, "btn_outlined");
     ui_column_add_control(app.column, ui_row_widget_mutable(outlined_row), false, "row_outlined");
 
+    ui_row_t *checkbox_row = ui_row_create();
+    ui_row_set_spacing(checkbox_row, 10);
+    apply_row_style(checkbox_row, ui_color_from_hex(0x1E1A2F), 5, 44);
+    ui_checkbox_t *checkbox_primary = make_checkbox("Активировать режим");
+    ui_checkbox_t *checkbox_secondary = make_checkbox("Beta-тестирование");
+    ui_checkbox_set_tristate(checkbox_secondary, true);
+    ui_checkbox_set_state(checkbox_secondary, UI_CHECKBOX_STATE_INDETERMINATE);
+    ui_checkbox_set_label_position(checkbox_secondary, UI_CHECKBOX_LABEL_POSITION_LEFT);
+    ui_checkbox_set_on_change(checkbox_primary, on_checkbox_change, &app);
+    ui_checkbox_set_on_change(checkbox_secondary, on_checkbox_change, &app);
+    ui_row_add_control(checkbox_row, ui_checkbox_widget_mutable(checkbox_primary), true, "checkbox_primary");
+    ui_row_add_control(checkbox_row, ui_checkbox_widget_mutable(checkbox_secondary), true, "checkbox_secondary");
+    ui_column_add_control(app.column, ui_row_widget_mutable(checkbox_row), false, "row_checkboxes");
+
     ui_button_t *theme_btn = make_button("Сменить тему", 10, 5, 32);
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
     ui_row_t *theme_row = ui_row_create();
@@ -379,6 +483,11 @@ int main(void)
     ui_text_set_font(elevated_note, bareui_font_default());
     ui_column_add_control(app.column, ui_text_widget_mutable(elevated_note), false,
                          "elevated_note");
+    ui_text_t *pattern_decoration =
+        make_text("Pattern: .:.:.:.:.", ui_color_from_hex(0x8EA4FF), ui_color_from_hex(0x141521));
+    ui_text_set_font(pattern_decoration, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(pattern_decoration), false,
+                         "elevated_pattern");
     ui_button_t *elevated_btn = make_elevated_button("Elevated action");
     ui_button_set_on_click(elevated_btn, on_action_click, &app);
     ui_row_t *elevated_row = ui_row_create();
@@ -450,6 +559,7 @@ int main(void)
     ui_text_destroy(filled_hint);
     ui_text_destroy(outlined_caption);
     ui_text_destroy(elevated_note);
+    ui_text_destroy(pattern_decoration);
     ui_text_destroy(progress_caption);
     ui_text_destroy(app.status);
     ui_text_destroy(app.clock);

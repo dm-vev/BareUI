@@ -11,6 +11,9 @@
 
 #include "ui_primitives.h"
 
+#define UI_PROGRESSRING_PI 3.14159265358979323846
+#define UI_PROGRESSRING_TWO_PI (2.0 * UI_PROGRESSRING_PI)
+
 struct ui_progressring {
     ui_widget_t base;
     ui_color_t track_color;
@@ -54,7 +57,7 @@ static double ui_progressring_clamp(double value, double min, double max)
 
 static double ui_progressring_normalize_angle(double angle)
 {
-    double two_pi = 2.0 * M_PI;
+    double two_pi = UI_PROGRESSRING_TWO_PI;
     double normalized = fmod(angle, two_pi);
     if (normalized < 0.0) {
         normalized += two_pi;
@@ -71,7 +74,7 @@ static bool ui_progressring_angle_in_range(double angle, double start, double sw
     double norm_start = ui_progressring_normalize_angle(start);
     double delta = norm_angle - norm_start;
     if (delta < 0.0) {
-        delta += 2.0 * M_PI;
+        delta += UI_PROGRESSRING_TWO_PI;
     }
     return delta <= sweep;
 }
@@ -156,30 +159,30 @@ static bool ui_progressring_render(ui_context_t *ctx, ui_widget_t *widget, const
     double cx = bounds->x + bounds->width * 0.5;
     double cy = bounds->y + bounds->height * 0.5;
 
-    double start_angle = -M_PI / 2.0;
+    double start_angle = -UI_PROGRESSRING_PI / 2.0;
     double sweep = 0.0;
     if (ring->has_value) {
         double value = ring->value;
         value = ui_progressring_clamp(value, 0.0, 1.0);
-        sweep = value * 2.0 * M_PI;
+        sweep = value * UI_PROGRESSRING_TWO_PI;
     } else {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         double seconds = now.tv_sec + now.tv_nsec / 1e9;
         double phase = fmod(seconds / 1.2, 1.0);
-        start_angle += phase * 2.0 * M_PI;
-        sweep = M_PI * 1.35;
+        start_angle += phase * UI_PROGRESSRING_TWO_PI;
+        sweep = UI_PROGRESSRING_PI * 1.35;
     }
 
-    if (sweep > 2.0 * M_PI) {
+    if (sweep > UI_PROGRESSRING_TWO_PI) {
         sweep = 2.0 * M_PI;
     }
     if (ring->stroke_cap == UI_STROKE_CAP_SQUARE && radius > 0.0) {
         double extension = half_stroke / radius;
         start_angle -= extension;
         sweep += extension * 2.0;
-        if (sweep > 2.0 * M_PI) {
-            sweep = 2.0 * M_PI;
+        if (sweep > UI_PROGRESSRING_TWO_PI) {
+            sweep = UI_PROGRESSRING_TWO_PI;
         }
     }
 
