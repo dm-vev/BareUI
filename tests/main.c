@@ -372,8 +372,9 @@ int main(void)
                           "row_filled_actions");
 
     ui_text_t *elevated_note = make_text(
-        "Elevated buttons are filled tonal buttons with a shadow. Use them only when "
-        "they must separate from patterned backgrounds.",
+        "Elevated buttons are filled tonal buttons with a shadow. To prevent shadow creep, only "
+        "use them when absolutely necessary, such as when the button requires visual separation "
+        "from a patterned background.",
         ui_color_from_hex(0xB6CCFF), ui_color_from_hex(0x141521));
     ui_text_set_font(elevated_note, bareui_font_default());
     ui_column_add_control(app.column, ui_text_widget_mutable(elevated_note), false,
@@ -387,6 +388,34 @@ int main(void)
                        "elevated");
     ui_column_add_control(app.column, ui_row_widget_mutable(elevated_row), false,
                          "row_elevated");
+
+    ui_text_t *progress_caption = make_text(
+        "Progress indicators show determinate and indeterminate work in progress.",
+        ui_color_from_hex(0xB1D4FF), ui_color_from_hex(0x141521));
+    ui_text_set_font(progress_caption, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(progress_caption), false,
+                         "progress_caption");
+    ui_row_t *progress_row = ui_row_create();
+    ui_row_set_spacing(progress_row, 12);
+    apply_row_style(progress_row, ui_color_from_hex(0x141521), 8, 82);
+    ui_progressring_t *determinate_ring = ui_progressring_create();
+    ui_widget_set_bounds(ui_progressring_widget_mutable(determinate_ring), 0, 0, 68, 68);
+    ui_progressring_set_value(determinate_ring, 0.67);
+    ui_progressring_set_progress_color(determinate_ring, ui_color_from_hex(0x63E6FF));
+    ui_progressring_set_track_color(determinate_ring, ui_color_from_hex(0x10131F));
+    ui_progressring_set_tooltip(determinate_ring, "Determinate progress");
+    ui_row_add_control(progress_row, ui_progressring_widget_mutable(determinate_ring), false,
+                       "ring_determinate");
+    ui_progressring_t *indeterminate_ring = ui_progressring_create();
+    ui_widget_set_bounds(ui_progressring_widget_mutable(indeterminate_ring), 0, 0, 68, 68);
+    ui_progressring_clear_value(indeterminate_ring);
+    ui_progressring_set_progress_color(indeterminate_ring, ui_color_from_hex(0xC7FFED));
+    ui_progressring_set_track_color(indeterminate_ring, ui_color_from_hex(0x0F1119));
+    ui_progressring_set_tooltip(indeterminate_ring, "Indeterminate spinner");
+    ui_row_add_control(progress_row, ui_progressring_widget_mutable(indeterminate_ring), false,
+                       "ring_indeterminate");
+    ui_column_add_control(app.column, ui_row_widget_mutable(progress_row), false,
+                         "row_progress");
 
     ui_row_t *stats = ui_row_create();
     ui_row_set_spacing(stats, 10);
