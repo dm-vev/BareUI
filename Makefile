@@ -19,7 +19,7 @@ TARGET := tests/main
 all: $(TARGET)
 
 	# Build demo
-$(TARGET): src/ui_primitives.c src/ui_widget.c src/ui_font.c src/ui_font_lores.c src/hal/hal_test_sdl.c tests/main.c
+$(TARGET): src/ui_primitives.c src/ui_widget.c src/ui_scene.c src/ui_font.c src/ui_font_lores.c src/hal/hal_test_sdl.c tests/main.c
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) $^ -o $@ $(LDFLAGS) $(SDL_LDFLAGS)
 
 clean:
