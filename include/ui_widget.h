@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef struct {
@@ -13,14 +14,6 @@ typedef struct {
     int width;
     int height;
 } ui_rect_t;
-
-typedef struct ui_widget ui_widget_t;
-
-typedef struct {
-    bool (*render)(ui_context_t *ctx, ui_widget_t *widget, const ui_rect_t *bounds);
-    bool (*handle_event)(ui_widget_t *widget, const ui_event_t *event);
-    void (*destroy)(ui_widget_t *widget);
-} ui_widget_ops_t;
 
 typedef struct {
     const char *name;
@@ -52,7 +45,22 @@ typedef struct {
     size_t extra_size;
     ui_style_prop_t custom_props[UI_STYLE_MAX_CUSTOM_PROPS];
     size_t custom_count;
+    uint32_t flags;
 } ui_style_t;
+
+#define UI_STYLE_FLAG_BACKGROUND_COLOR (1u << 0)
+#define UI_STYLE_FLAG_FOREGROUND_COLOR (1u << 1)
+#define UI_STYLE_FLAG_BORDER_COLOR     (1u << 2)
+#define UI_STYLE_FLAG_ACCENT_COLOR     (1u << 3)
+
+typedef struct ui_widget ui_widget_t;
+
+typedef struct {
+    bool (*render)(ui_context_t *ctx, ui_widget_t *widget, const ui_rect_t *bounds);
+    bool (*handle_event)(ui_widget_t *widget, const ui_event_t *event);
+    void (*destroy)(ui_widget_t *widget);
+    void (*style_changed)(ui_widget_t *widget, const ui_style_t *style);
+} ui_widget_ops_t;
 
 void ui_style_init(ui_style_t *style);
 void ui_style_copy(ui_style_t *dst, const ui_style_t *src);

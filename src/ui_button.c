@@ -119,6 +119,26 @@ static void ui_button_draw_text(ui_context_t *ctx, const ui_button_t *button, in
     ui_context_set_font(ctx, prev);
 }
 
+static void ui_button_apply_style(ui_widget_t *widget, const ui_style_t *style)
+{
+    if (!widget || !style) {
+        return;
+    }
+    ui_button_t *button = (ui_button_t *)widget;
+    if (style->flags & UI_STYLE_FLAG_BACKGROUND_COLOR) {
+        button->background_color = style->background_color;
+    }
+    if (style->flags & UI_STYLE_FLAG_FOREGROUND_COLOR) {
+        button->text_color = style->foreground_color;
+    }
+    if (style->flags & UI_STYLE_FLAG_ACCENT_COLOR) {
+        button->hover_color = style->accent_color;
+    }
+    if (style->flags & UI_STYLE_FLAG_BORDER_COLOR) {
+        button->pressed_color = style->border_color;
+    }
+}
+
 static void ui_button_notify_hover(ui_button_t *button, bool hover_state)
 {
     if (!button || button->hovered == hover_state) {
@@ -270,7 +290,8 @@ static bool ui_button_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
 static const ui_widget_ops_t ui_button_ops = {
     .render = ui_button_render,
     .handle_event = ui_button_handle_event,
-    .destroy = NULL
+    .destroy = NULL,
+    .style_changed = ui_button_apply_style
 };
 
 static char *ui_button_copy_text(const char *text)
@@ -324,6 +345,17 @@ void ui_button_init(ui_button_t *button)
     button->enabled = true;
     button->rtl = false;
     button->long_press_fired = false;
+    ui_style_t default_style;
+    ui_style_init(&default_style);
+    default_style.background_color = button->background_color;
+    default_style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    default_style.foreground_color = button->text_color;
+    default_style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
+    default_style.accent_color = button->hover_color;
+    default_style.flags |= UI_STYLE_FLAG_ACCENT_COLOR;
+    default_style.border_color = button->pressed_color;
+    default_style.flags |= UI_STYLE_FLAG_BORDER_COLOR;
+    ui_widget_set_style(&button->base, &default_style);
 }
 
 void ui_button_set_text(ui_button_t *button, const char *text)
@@ -354,8 +386,15 @@ const bareui_font_t *ui_button_font(const ui_button_t *button)
 
 void ui_button_set_background_color(ui_button_t *button, ui_color_t color)
 {
-    if (button) {
-        button->background_color = color;
+    if (!button) {
+        return;
+    }
+    button->background_color = color;
+    ui_style_t *style = &button->base.style;
+    style->background_color = color;
+    style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    if (button->base.ops && button->base.ops->style_changed) {
+        button->base.ops->style_changed(&button->base, style);
     }
 }
 
@@ -366,8 +405,15 @@ ui_color_t ui_button_background_color(const ui_button_t *button)
 
 void ui_button_set_text_color(ui_button_t *button, ui_color_t color)
 {
-    if (button) {
-        button->text_color = color;
+    if (!button) {
+        return;
+    }
+    button->text_color = color;
+    ui_style_t *style = &button->base.style;
+    style->foreground_color = color;
+    style->flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
+    if (button->base.ops && button->base.ops->style_changed) {
+        button->base.ops->style_changed(&button->base, style);
     }
 }
 
@@ -378,8 +424,15 @@ ui_color_t ui_button_text_color(const ui_button_t *button)
 
 void ui_button_set_hover_color(ui_button_t *button, ui_color_t color)
 {
-    if (button) {
-        button->hover_color = color;
+    if (!button) {
+        return;
+    }
+    button->hover_color = color;
+    ui_style_t *style = &button->base.style;
+    style->accent_color = color;
+    style->flags |= UI_STYLE_FLAG_ACCENT_COLOR;
+    if (button->base.ops && button->base.ops->style_changed) {
+        button->base.ops->style_changed(&button->base, style);
     }
 }
 
@@ -390,8 +443,15 @@ ui_color_t ui_button_hover_color(const ui_button_t *button)
 
 void ui_button_set_pressed_color(ui_button_t *button, ui_color_t color)
 {
-    if (button) {
-        button->pressed_color = color;
+    if (!button) {
+        return;
+    }
+    button->pressed_color = color;
+    ui_style_t *style = &button->base.style;
+    style->border_color = color;
+    style->flags |= UI_STYLE_FLAG_BORDER_COLOR;
+    if (button->base.ops && button->base.ops->style_changed) {
+        button->base.ops->style_changed(&button->base, style);
     }
 }
 

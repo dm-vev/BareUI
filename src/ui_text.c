@@ -67,6 +67,20 @@ static bool ui_text_next_codepoint(const char *str, size_t len, size_t *offset, 
     return true;
 }
 
+static void ui_text_apply_style(ui_widget_t *widget, const ui_style_t *style)
+{
+    if (!widget || !style) {
+        return;
+    }
+    ui_text_t *text = (ui_text_t *)widget;
+    if (style->flags & UI_STYLE_FLAG_FOREGROUND_COLOR) {
+        text->color = style->foreground_color;
+    }
+    if (style->flags & UI_STYLE_FLAG_BACKGROUND_COLOR) {
+        text->background_color = style->background_color;
+    }
+}
+
 static int ui_text_measure_line(const ui_text_t *text, const char *line, size_t len)
 {
     const bareui_font_t *font = text->font ? text->font : bareui_font_default();
@@ -178,7 +192,8 @@ static bool ui_text_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect
 static const ui_widget_ops_t ui_text_ops = {
     .render = ui_text_render,
     .handle_event = NULL,
-    .destroy = NULL
+    .destroy = NULL,
+    .style_changed = ui_text_apply_style
 };
 
 static void ui_text_set_value_internal(ui_text_t *text, const char *value)
@@ -223,6 +238,13 @@ void ui_text_init(ui_text_t *text)
     text->italic = false;
     text->max_lines = 0;
     text->line_spacing = 0;
+    ui_style_t default_style;
+    ui_style_init(&default_style);
+    default_style.foreground_color = text->color;
+    default_style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
+    default_style.background_color = text->background_color;
+    default_style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    ui_widget_set_style(&text->base, &default_style);
 }
 
 void ui_text_set_value(ui_text_t *text, const char *value)
@@ -240,15 +262,27 @@ const char *ui_text_value(const ui_text_t *text)
 
 void ui_text_set_color(ui_text_t *text, ui_color_t color)
 {
-    if (text) {
-        text->color = color;
+    if (!text) {
+        return;
+    }
+    ui_style_t *style = &text->base.style;
+    style->foreground_color = color;
+    style->flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
+    if (text->base.ops && text->base.ops->style_changed) {
+        text->base.ops->style_changed(&text->base, style);
     }
 }
 
 void ui_text_set_background_color(ui_text_t *text, ui_color_t color)
 {
-    if (text) {
-        text->background_color = color;
+    if (!text) {
+        return;
+    }
+    ui_style_t *style = &text->base.style;
+    style->background_color = color;
+    style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    if (text->base.ops && text->base.ops->style_changed) {
+        text->base.ops->style_changed(&text->base, style);
     }
 }
 

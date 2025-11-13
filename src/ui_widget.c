@@ -29,6 +29,7 @@ void ui_style_init(ui_style_t *style)
     style->border_radius = 0;
     style->shadow_enabled = false;
     style->custom_count = 0;
+    style->flags = 0;
 }
 
 void ui_style_copy(ui_style_t *dst, const ui_style_t *src)
@@ -204,6 +205,9 @@ void ui_widget_set_style(ui_widget_t *widget, const ui_style_t *style)
         ui_style_copy(&widget->style, style);
     } else {
         ui_style_init(&widget->style);
+    }
+    if (widget->ops && widget->ops->style_changed) {
+        widget->ops->style_changed(widget, &widget->style);
     }
 }
 
