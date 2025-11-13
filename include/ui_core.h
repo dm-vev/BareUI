@@ -2,6 +2,7 @@
 #define UI_CORE_H
 
 #include "ui_container.h"
+#include "ui_column.h"
 #include "ui_scene.h"
 
 /*
