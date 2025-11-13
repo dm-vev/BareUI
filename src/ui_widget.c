@@ -1,5 +1,76 @@
 #include "ui_widget.h"
 
+#include <string.h>
+
+static bool ui_style_find_prop_idx(const ui_style_t *style, const char *key, size_t *out)
+{
+    if (!style || !key) {
+        return false;
+    }
+    for (size_t i = 0; i < style->custom_count; ++i) {
+        if (style->custom_props[i].name &&
+            strcmp(style->custom_props[i].name, key) == 0) {
+            if (out) {
+                *out = i;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+void ui_style_init(ui_style_t *style)
+{
+    if (!style) {
+        return;
+    }
+    memset(style, 0, sizeof(*style));
+    style->border_width = 0;
+    style->border_radius = 0;
+    style->shadow_enabled = false;
+    style->custom_count = 0;
+}
+
+void ui_style_copy(ui_style_t *dst, const ui_style_t *src)
+{
+    if (!dst || !src) {
+        return;
+    }
+    memcpy(dst, src, sizeof(*dst));
+}
+
+bool ui_style_set_custom_prop(ui_style_t *style, const char *key, uint32_t value)
+{
+    if (!style || !key) {
+        return false;
+    }
+    size_t idx;
+    if (ui_style_find_prop_idx(style, key, &idx)) {
+        style->custom_props[idx].value = value;
+        return true;
+    }
+    if (style->custom_count >= UI_STYLE_MAX_CUSTOM_PROPS) {
+        return false;
+    }
+    style->custom_props[style->custom_count].name = key;
+    style->custom_props[style->custom_count].value = value;
+    style->custom_count++;
+    return true;
+}
+
+bool ui_style_get_custom_prop(const ui_style_t *style, const char *key, uint32_t *out)
+{
+    if (!style || !key || !out) {
+        return false;
+    }
+    size_t idx;
+    if (!ui_style_find_prop_idx(style, key, &idx)) {
+        return false;
+    }
+    *out = style->custom_props[idx].value;
+    return true;
+}
+
 void ui_widget_init(ui_widget_t *widget, const ui_widget_ops_t *ops)
 {
     if (!widget) {
@@ -15,6 +86,7 @@ void ui_widget_init(ui_widget_t *widget, const ui_widget_ops_t *ops)
     widget->bounds.height = 0;
     widget->user_data = NULL;
     widget->visible = true;
+    ui_style_init(&widget->style);
 }
 
 void ui_widget_set_bounds(ui_widget_t *widget, int x, int y, int width, int height)
@@ -121,4 +193,21 @@ void ui_widget_destroy_tree(ui_widget_t *root)
         root->ops->destroy(root);
     }
     ui_widget_remove_child(root);
+}
+
+void ui_widget_set_style(ui_widget_t *widget, const ui_style_t *style)
+{
+    if (!widget) {
+        return;
+    }
+    if (style) {
+        ui_style_copy(&widget->style, style);
+    } else {
+        ui_style_init(&widget->style);
+    }
+}
+
+const ui_style_t *ui_widget_style(const ui_widget_t *widget)
+{
+    return widget ? &widget->style : NULL;
 }
