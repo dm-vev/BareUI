@@ -4,6 +4,7 @@
 #include "ui_container.h"
 #include "ui_column.h"
 #include "ui_row.h"
+#include "ui_button.h"
 #include "ui_scene.h"
 #include "ui_text.h"
 
