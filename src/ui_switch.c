@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct ui_switch {
+struct ui_switch {
     ui_widget_t base;
     char *label;
     const bareui_font_t *font;
@@ -36,7 +36,7 @@ typedef struct ui_switch {
     void *on_focus_data;
     ui_switch_event_fn on_blur;
     void *on_blur_data;
-} ui_switch_impl_t;
+};
 
 static const ui_widget_ops_t ui_switch_ops;
 

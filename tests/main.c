@@ -537,6 +537,29 @@ int main(void)
     ui_row_add_control(stats, ui_text_widget_mutable(app.clock), true, "clock");
     ui_column_add_control(app.column, ui_row_widget_mutable(stats), false, "row_stats");
 
+    ui_text_t *progress_caption = make_text(
+        "Linear progress indicators / Линейные индикаторы",
+        ui_color_from_hex(0x88C6FF), ui_color_from_hex(0x1E1A2F));
+    ui_text_set_font(progress_caption, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(progress_caption), false, "progress_caption");
+    app.progress_determinate = make_progressbar("Download progress", ui_color_from_hex(0x23273C),
+                                                ui_color_from_hex(0xFFD166), ui_color_from_hex(0x4F5CA8), true);
+    if (app.progress_determinate) {
+        ui_widget_set_bounds(ui_progressbar_widget_mutable(app.progress_determinate), 0, 0,
+                             UI_FRAMEBUFFER_WIDTH, 32);
+        ui_column_add_control(app.column, ui_progressbar_widget_mutable(app.progress_determinate),
+                              false, "progress_determinate");
+    }
+    app.progress_indeterminate = make_progressbar("Sync in progress", ui_color_from_hex(0x1C1F2E),
+                                                  ui_color_from_hex(0x64FFC6), ui_color_from_hex(0x1F2936),
+                                                  false);
+    if (app.progress_indeterminate) {
+        ui_widget_set_bounds(ui_progressbar_widget_mutable(app.progress_indeterminate), 0, 0,
+                             UI_FRAMEBUFFER_WIDTH, 28);
+        ui_column_add_control(app.column, ui_progressbar_widget_mutable(app.progress_indeterminate),
+                              false, "progress_indeterminate");
+    }
+
     ui_scene_set_root(scene, ui_column_widget_mutable(app.column));
     ui_scene_set_user_data(scene, &app);
     ui_scene_set_tick(scene, app_tick);
