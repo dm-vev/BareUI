@@ -24,6 +24,7 @@ Outlined buttons are medium-emphasis controls for actions that are important but
 Демонстрация в `tests/main.c` выделяет отдельный блок с паттерном и подписью, чтобы показать, как elevated-кнопка выглядит поверх узорного фона и почему тень стоит использовать лишь в таком сценарии.
 
 Filled buttons have the most visual impact after the FloatingActionButton and should be reserved for important, final actions such as Save, Join now, or Confirm. The `tests/main.c` showcase now adds a dedicated filled row with bold backgrounds, hover/pressed feedback, and a lift shadow to illustrate this pattern.
+Use `ui_button_set_filled_style` to bootstrap that look on any button without recreating the style from scratch.
 
 ## Шрифтовая цепочка
 1. Откройте `tools/build_font.py`, укажите нужный TTF (`FONT_PATH`) и запустите `python tools/build_font.py > src/font/bareui_font_data.h` (нужен Python3 и библиотека Pillow).

@@ -5,250 +5,106 @@
 #include "ui_progressbar.h"
 #include "ui_row.h"
 #include "ui_scene.h"
+#include "ui_slider.h"
 #include "ui_switch.h"
 #include "ui_text.h"
 #include "ui_hal_test.h"
 #include "ui_shadow.h"
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 typedef struct {
     ui_scene_t *scene;
-    ui_column_t *column;
+    ui_column_t *root;
+    ui_slider_t *slider;
+    ui_switch_t *mode_switch;
+    ui_checkbox_t *ring_checkbox;
+    ui_progressbar_t *progress_bar;
+    ui_progressring_t *progress_ring;
     ui_text_t *status;
-    ui_text_t *clock;
-    ui_text_t *subtitle;
     ui_text_t *detail;
-    int color_index;
-    double elapsed;
-    ui_switch_t *toggle;
-    ui_progressbar_t *progress_determinate;
-    ui_progressbar_t *progress_indeterminate;
     double progress_value;
+    int theme_index;
 } app_state_t;
 
-static ui_text_t *make_text(const char *value, ui_color_t fg, ui_color_t bg)
+static ui_text_t *create_text_line(const char *value, ui_color_t fg, ui_color_t bg, int height)
 {
     ui_text_t *text = ui_text_create();
     if (!text) {
         return NULL;
     }
+    ui_text_set_value(text, value);
+    ui_text_set_font(text, bareui_font_default());
     ui_style_t style;
     ui_style_init(&style);
     style.foreground_color = fg;
     style.background_color = bg;
-    style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR | UI_STYLE_FLAG_BACKGROUND_COLOR;
+    style.flags = UI_STYLE_FLAG_FOREGROUND_COLOR | UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_text_widget_mutable(text), &style);
-    ui_text_set_value(text, value);
-    int text_height = BAREUI_FONT_HEIGHT * 2 + 8;
-    ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, text_height);
+    ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, height);
     return text;
 }
 
-static ui_progressbar_t *make_progressbar(const char *tooltip, ui_color_t track, ui_color_t accent,
-                                          ui_color_t border, bool determinate)
+static void apply_column_background(ui_column_t *column, ui_color_t background)
 {
-    ui_progressbar_t *progress = ui_progressbar_create();
-    if (!progress) {
-        return NULL;
+    if (!column) {
+        return;
     }
-    ui_style_t style;
-    ui_style_init(&style);
-    style.background_color = track;
-    style.foreground_color = accent;
-    style.accent_color = accent;
-    style.border_color = border;
-    style.border_width = 1;
-    style.border_sides = UI_BORDER_LEFT | UI_BORDER_RIGHT;
-    style.box_shadow.enabled = true;
-    style.box_shadow.color = ui_color_from_hex(0x050813);
-    style.box_shadow.offset_x = 0;
-    style.box_shadow.offset_y = 1;
-    style.box_shadow.blur_radius = 2;
-    style.box_shadow.spread_radius = 1;
-    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
-                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES |
-                  UI_STYLE_FLAG_BOX_SHADOW;
-    ui_widget_set_style(ui_progressbar_widget_mutable(progress), &style);
-    ui_progressbar_set_bar_height(progress, 10);
-    ui_progressbar_set_border_radius(progress, ui_border_radius_all(6));
-    ui_progressbar_set_tooltip(progress, tooltip);
-    ui_progressbar_set_semantics_label(progress, tooltip);
-    if (determinate) {
-        ui_progressbar_set_value(progress, 0.0);
-    } else {
-        ui_progressbar_clear_value(progress);
-    }
-    return progress;
-}
-
-static ui_button_t *make_button(const char *label, int pad_h, int pad_v, int fixed_height)
-{
-    ui_button_t *button = ui_button_create();
-    if (!button) {
-        return NULL;
-    }
-    ui_button_set_text(button, label);
-    ui_style_t style;
-    ui_style_init(&style);
-    style.background_color = ui_color_from_hex(0x1F1F2B);
-    style.foreground_color = ui_color_from_hex(0xF2F2F2);
-    style.accent_color = ui_color_from_hex(0x5A9ADB);
-    style.padding_left = style.padding_right = pad_h;
-    style.padding_top = style.padding_bottom = pad_v;
-    style.border_color = ui_color_from_hex(0x405070);
-    style.border_width = 1;
-    style.box_shadow.enabled = true;
-    style.box_shadow.color = ui_color_from_hex(0x0F1018);
-    style.box_shadow.offset_x = 1;
-    style.box_shadow.offset_y = 1;
-    style.box_shadow.spread_radius = 0;
-    style.box_shadow.blur_radius = 1;
-    style.border_sides = UI_BORDER_TOP | UI_BORDER_LEFT;
-    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
-                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BOX_SHADOW |
-                  UI_STYLE_FLAG_BORDER_SIDES;
-    ui_widget_set_style(ui_button_widget_mutable(button), &style);
-    int button_height = fixed_height > 0 ? fixed_height :
-                        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
-    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, button_height);
-    return button;
-}
-
-static ui_button_t *make_elevated_button(const char *label)
-{
-    ui_button_t *button = ui_button_create();
-    if (!button) {
-        return NULL;
-    }
-    ui_button_set_text(button, label);
-    ui_style_t style;
-    ui_style_init(&style);
-    style.background_color = ui_color_from_hex(0x3E3A6F);
-    style.foreground_color = ui_color_from_hex(0xF7F7FF);
-    style.padding_left = style.padding_right = 12;
-    style.padding_top = style.padding_bottom = 6;
-    style.box_shadow.enabled = true;
-    style.box_shadow.color = ui_color_from_hex(0x05050E);
-    style.box_shadow.offset_x = 0;
-    style.box_shadow.offset_y = 3;
-    style.box_shadow.blur_radius = 4;
-    style.box_shadow.spread_radius = 1;
-    style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
-    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_BOX_SHADOW;
-    ui_widget_set_style(ui_button_widget_mutable(button), &style);
-    int button_height =
-        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
-    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 140, button_height);
-    return button;
-}
-
-static ui_button_t *make_filled_button(const char *label, ui_color_t background,
-                                       ui_color_t hover, ui_color_t pressed, int pad_h,
-                                       int pad_v, int fixed_width)
-{
-    ui_button_t *button = ui_button_create();
-    if (!button) {
-        return NULL;
-    }
-    ui_button_set_text(button, label);
     ui_style_t style;
     ui_style_init(&style);
     style.background_color = background;
-    style.foreground_color = ui_color_from_hex(0xFFFFFF);
-    style.accent_color = hover;
-    style.padding_left = style.padding_right = pad_h;
-    style.padding_top = style.padding_bottom = pad_v;
-    style.border_width = 0;
-    style.border_sides = 0;
-    style.box_shadow.enabled = true;
-    style.box_shadow.color = ui_color_from_hex(0x0A1625);
-    style.box_shadow.offset_x = 0;
-    style.box_shadow.offset_y = 2;
-    style.box_shadow.blur_radius = 4;
-    style.box_shadow.spread_radius = 1;
-    style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
-    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_WIDTH |
-                  UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
-    ui_widget_set_style(ui_button_widget_mutable(button), &style);
-    ui_button_set_hover_color(button, hover);
-    ui_button_set_pressed_color(button, pressed);
-    int button_height = BAREUI_FONT_HEIGHT + pad_v * 2 + 8;
-    int button_width = fixed_width > 0 ? fixed_width : 120;
-    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, button_width, button_height);
-    return button;
-}
-
-static ui_button_t *make_outlined_button(const char *label, int pad_h, int pad_v, int fixed_height)
-{
-    ui_button_t *button = ui_button_create();
-    if (!button) {
-        return NULL;
-    }
-    ui_button_set_text(button, label);
-    ui_style_t style;
-    ui_style_init(&style);
-    style.background_color = ui_color_from_hex(0x1E1A2F);
-    style.foreground_color = ui_color_from_hex(0xA1D8FF);
-    style.accent_color = ui_color_from_hex(0x82C1FF);
-    style.border_color = ui_color_from_hex(0x5DA4FF);
-    style.border_width = 1;
-    style.padding_left = style.padding_right = pad_h;
-    style.padding_top = style.padding_bottom = pad_v;
-    style.border_sides = UI_BORDER_LEFT | UI_BORDER_TOP | UI_BORDER_RIGHT | UI_BORDER_BOTTOM;
-    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
-                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES;
-    ui_widget_set_style(ui_button_widget_mutable(button), &style);
-    int button_height = fixed_height > 0 ? fixed_height :
-                        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
-    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 120, button_height);
-    return button;
-}
-
-static ui_checkbox_t *make_checkbox(const char *label)
-{
-    ui_checkbox_t *checkbox = ui_checkbox_create();
-    if (!checkbox) {
-        return NULL;
-    }
-    ui_checkbox_set_label(checkbox, label);
-    ui_checkbox_set_active_color(checkbox, ui_color_from_hex(0x7EAAFF));
-    ui_checkbox_set_fill_color(checkbox, ui_color_from_hex(0x0F121F));
-    ui_checkbox_set_border_color(checkbox, ui_color_from_hex(0xD8E7FF));
-    ui_checkbox_set_check_color(checkbox, ui_color_from_hex(0xF5F5FF));
-    ui_checkbox_set_hover_color(checkbox, ui_color_from_hex(0x1C223D));
-    ui_widget_set_bounds(ui_checkbox_widget_mutable(checkbox), 0, 0, 200, 32);
-    return checkbox;
-}
-
-static void apply_column_style(ui_column_t *column, ui_color_t background)
-{
-    ui_style_t style;
-    ui_style_init(&style);
-    style.background_color = background;
-    style.padding_top = style.padding_bottom = 6;
-    style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_column_widget_mutable(column), &style);
 }
 
-static void apply_row_style(ui_row_t *row, ui_color_t background, int pad_v, int fixed_height)
+static void style_panel_row(ui_row_t *row, ui_color_t background, int height)
 {
+    if (!row) {
+        return;
+    }
     ui_style_t style;
     ui_style_init(&style);
     style.background_color = background;
-    style.padding_top = style.padding_bottom = pad_v;
-    style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    style.border_color = ui_color_from_hex(0x2B3145);
+    style.border_width = 1;
+    style.border_sides = UI_BORDER_LEFT | UI_BORDER_RIGHT | UI_BORDER_TOP | UI_BORDER_BOTTOM;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x05090F);
+    style.box_shadow.blur_radius = 6;
+    style.box_shadow.offset_y = 2;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
     ui_widget_set_style(ui_row_widget_mutable(row), &style);
-    int row_height = fixed_height > 0 ? fixed_height :
-                     BAREUI_FONT_HEIGHT * 2 + style.padding_top + style.padding_bottom + 12;
-    ui_widget_set_bounds(ui_row_widget_mutable(row), 0, 0, UI_FRAMEBUFFER_WIDTH, row_height);
+    ui_widget_set_bounds(ui_row_widget_mutable(row), 0, 0, UI_FRAMEBUFFER_WIDTH, height);
+}
+
+static ui_button_t *create_button(const char *label, ui_color_t background, ui_color_t accent)
+{
+    ui_button_t *button = ui_button_create();
+    if (!button) {
+        return NULL;
+    }
+    ui_button_set_text(button, label);
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = background;
+    style.foreground_color = ui_color_from_hex(0xF6F6FF);
+    style.accent_color = accent;
+    style.border_color = ui_color_from_hex(0x131828);
+    style.border_width = 1;
+    style.border_sides = UI_BORDER_LEFT | UI_BORDER_TOP | UI_BORDER_RIGHT | UI_BORDER_BOTTOM;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x04060D);
+    style.box_shadow.blur_radius = 4;
+    style.box_shadow.offset_y = 1;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
+    ui_widget_set_style(ui_button_widget_mutable(button), &style);
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 120, 40);
+    return button;
 }
 
 static void update_status(app_state_t *app, const char *message)
@@ -259,87 +115,152 @@ static void update_status(app_state_t *app, const char *message)
     ui_text_set_value(app->status, message);
 }
 
-static void update_action_detail(app_state_t *app, const char *label)
+static void refresh_progress(app_state_t *app)
 {
-    if (!app || !app->detail) {
+    if (!app) {
         return;
     }
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "Последнее действие: %s", label ? label : "—");
-    ui_text_set_value(app->detail, buffer);
+    double percent = app->progress_value * 100.0;
+    if (app->progress_bar) {
+        ui_progressbar_set_value(app->progress_bar, app->progress_value);
+        char label[64];
+        snprintf(label, sizeof(label), "%.0f%% готово", percent);
+        ui_progressbar_set_semantics_value(app->progress_bar, label);
+    }
+    if (app->progress_ring) {
+        ui_progressring_set_value(app->progress_ring, app->progress_value);
+        char label[64];
+        snprintf(label, sizeof(label), "%.0f%%", percent);
+        ui_progressring_set_semantics_value(app->progress_ring, label);
+    }
+    if (app->detail) {
+        char detail[64];
+        snprintf(detail, sizeof(detail), "Готовность: %.0f%%", percent);
+        ui_text_set_value(app->detail, detail);
+    }
 }
 
-static void on_action_click(ui_button_t *button, void *user_data)
+static void apply_progress_mode(app_state_t *app, bool turbo)
 {
+    if (!app) {
+        return;
+    }
+    ui_style_t bar_style;
+    ui_style_init(&bar_style);
+    bar_style.background_color = turbo ? ui_color_from_hex(0x14202C) : ui_color_from_hex(0x1B2137);
+    bar_style.foreground_color = turbo ? ui_color_from_hex(0x8DFCE5) : ui_color_from_hex(0x63A3FF);
+    bar_style.accent_color = bar_style.foreground_color;
+    bar_style.border_color = ui_color_from_hex(0x2B3145);
+    bar_style.border_width = 1;
+    bar_style.border_sides = UI_BORDER_LEFT | UI_BORDER_RIGHT | UI_BORDER_TOP | UI_BORDER_BOTTOM;
+    bar_style.box_shadow.enabled = true;
+    bar_style.box_shadow.color = ui_color_from_hex(0x05090F);
+    bar_style.box_shadow.blur_radius = 6;
+    bar_style.box_shadow.offset_y = 2;
+    bar_style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                      UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                      UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
+    if (app->progress_bar) {
+        ui_widget_set_style(ui_progressbar_widget_mutable(app->progress_bar), &bar_style);
+    }
+    if (app->progress_ring) {
+        ui_progressring_set_track_color(app->progress_ring, turbo ? ui_color_from_hex(0x0D1726)
+                                                                  : ui_color_from_hex(0x101827));
+        ui_progressring_set_progress_color(app->progress_ring, turbo ? ui_color_from_hex(0x9EF3D4)
+                                                                     : ui_color_from_hex(0x63A3FF));
+    }
+}
+
+static void on_increment_click(ui_button_t *button, void *user_data)
+{
+    (void)button;
     app_state_t *app = user_data;
     if (!app) {
         return;
     }
-    const char *label = ui_button_text(button);
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "Действие: %s", label ? label : "—");
-    update_status(app, buffer);
-    update_action_detail(app, label);
+    app->progress_value += 0.22;
+    if (app->progress_value > 1.0) {
+        app->progress_value = 1.0;
+    }
+    if (app->slider) {
+        ui_slider_set_value(app->slider, app->progress_value * 100.0);
+    }
+    refresh_progress(app);
+    update_status(app, "Boost режим увеличил индикаторы");
+}
+
+static void on_reset_click(ui_button_t *button, void *user_data)
+{
+    (void)button;
+    app_state_t *app = user_data;
+    if (!app) {
+        return;
+    }
+    app->progress_value = 0.34;
+    if (app->slider) {
+        ui_slider_set_value(app->slider, app->progress_value * 100.0);
+    }
+    refresh_progress(app);
+    update_status(app, "Сброс значений до базовых");
 }
 
 static void on_theme_click(ui_button_t *button, void *user_data)
 {
+    (void)button;
+    app_state_t *app = user_data;
+    if (!app || !app->root) {
+        return;
+    }
+    static const uint32_t palettes[] = {
+        0x0F1420,
+        0x1A1E2C,
+        0x111928
+    };
+    app->theme_index = (app->theme_index + 1) % (int)(sizeof(palettes) / sizeof(palettes[0]));
+    ui_color_t color = ui_color_from_hex(palettes[app->theme_index]);
+    apply_column_background(app->root, color);
+    update_status(app, "Тема сцены обновлена");
+}
+
+static void on_switch_change(ui_switch_t *sw, bool value, void *user_data)
+{
+    (void)sw;
     app_state_t *app = user_data;
     if (!app) {
         return;
     }
-    (void)button;
-    const ui_color_t palette[] = {
-        ui_color_from_hex(0x10101F),
-        ui_color_from_hex(0x1E2A3C),
-        ui_color_from_hex(0x2B2E3E),
-        ui_color_from_hex(0x16292D),
-    };
-    app->color_index = (app->color_index + 1) % (int)(sizeof(palette) / sizeof(palette[0]));
-    apply_column_style(app->column, palette[app->color_index]);
-    update_status(app, "Theme changed / Тема обновлена");
-    update_action_detail(app, "Смена темы");
+    apply_progress_mode(app, value);
+    if (value) {
+        update_status(app, "Performance режим активен");
+    } else {
+        update_status(app, "Balanced режим включен");
+    }
 }
 
 static void on_checkbox_change(ui_checkbox_t *checkbox, ui_checkbox_state_t state, void *user_data)
 {
+    (void)checkbox;
     app_state_t *app = user_data;
-    if (!app || !checkbox) {
+    if (!app) {
         return;
     }
-    const char *label = ui_checkbox_label(checkbox);
-    const char *state_label;
-    if (state == UI_CHECKBOX_STATE_CHECKED) {
-        state_label = "включено";
-    } else if (state == UI_CHECKBOX_STATE_INDETERMINATE) {
-        state_label = "промежуточно";
-    } else {
-        state_label = "выключено";
+    bool visible = state != UI_CHECKBOX_STATE_UNCHECKED;
+    if (app->progress_ring) {
+        ui_widget_set_visible(ui_progressring_widget_mutable(app->progress_ring), visible);
     }
-    char buffer[128];
-    snprintf(buffer, sizeof(buffer), "%s: %s", label ? label : "Checkbox", state_label);
-    update_status(app, buffer);
-    update_action_detail(app, label);
+    update_status(app, visible ? "Кольцо отображается" : "Кольцо скрыто");
 }
 
-static bool app_tick(ui_scene_t *scene, double delta)
+static void on_slider_change(ui_slider_t *slider, double value, void *user_data)
 {
-    app_state_t *app = ui_scene_user_data(scene);
-    if (!app || !app->clock) {
-        return true;
+    (void)slider;
+    app_state_t *app = user_data;
+    if (!app) {
+        return;
     }
-    app->elapsed += delta;
-    char buffer[64];
-    snprintf(buffer, sizeof(buffer), "Uptime %.1f s", app->elapsed);
-    ui_text_set_value(app->clock, buffer);
-    if (app->progress_determinate) {
-        app->progress_value += delta * 0.22;
-        while (app->progress_value > 1.0) {
-            app->progress_value -= 1.0;
-        }
-        ui_progressbar_set_value(app->progress_determinate, app->progress_value);
-    }
-    return true;
+    app->progress_value = value / 100.0;
+    refresh_progress(app);
+    update_status(app, "Слайдер синхронизирует индикаторы");
 }
 
 int main(void)
@@ -356,250 +277,221 @@ int main(void)
 
     app_state_t app = {
         .scene = scene,
+        .root = NULL,
+        .slider = NULL,
+        .mode_switch = NULL,
+        .ring_checkbox = NULL,
+        .progress_bar = NULL,
+        .progress_ring = NULL,
         .status = NULL,
-        .clock = NULL,
-        .subtitle = NULL,
         .detail = NULL,
-        .color_index = 0,
-        .elapsed = 0.0,
-        .progress_determinate = NULL,
-        .progress_indeterminate = NULL,
-        .progress_value = 0.0,
+        .progress_value = 0.34,
+        .theme_index = 0
     };
 
-    app.column = ui_column_create();
-    if (!app.column) {
-        ui_scene_destroy(scene);
-        return 1;
+    ui_column_t *root = NULL;
+    ui_row_t *control_row = NULL;
+    ui_row_t *ring_row = NULL;
+    ui_row_t *toggles = NULL;
+    ui_row_t *status_row = NULL;
+    ui_text_t *title = NULL;
+    ui_text_t *subtitle = NULL;
+    ui_text_t *ring_hint = NULL;
+    ui_text_t *status_line = NULL;
+    ui_text_t *detail_line = NULL;
+    ui_button_t *boost_btn = NULL;
+    ui_button_t *reset_btn = NULL;
+    ui_button_t *theme_btn = NULL;
+    ui_progressring_t *ring = NULL;
+    ui_slider_t *slider = NULL;
+    ui_progressbar_t *progress = NULL;
+    ui_switch_t *mode = NULL;
+    ui_checkbox_t *ring_toggle = NULL;
+    int exit_code = 1;
+
+    root = ui_column_create();
+    if (!root) {
+        goto cleanup;
     }
-    ui_column_set_spacing(app.column, 14);
-    apply_column_style(app.column, ui_color_from_hex(0x1E1A2F));
-    ui_widget_set_bounds(ui_column_widget_mutable(app.column), 0, 0,
-                         UI_FRAMEBUFFER_WIDTH, UI_FRAMEBUFFER_HEIGHT);
+    app.root = root;
+    ui_column_set_spacing(root, 12);
+    apply_column_background(root, ui_color_from_hex(0x0F1420));
+    ui_widget_set_bounds(ui_column_widget_mutable(root), 0, 0, UI_FRAMEBUFFER_WIDTH, UI_FRAMEBUFFER_HEIGHT);
 
-    ui_text_t *header = make_text("BareUI Widgets Showcase", ui_color_from_hex(0xFFD166),
-                                  ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(header, bareui_font_default());
-    app.subtitle = make_text("Styles, rows, columns, buttons, scroll, and events. / Стили, строки, колонки, кнопки, прокрутка и события.",
-                             ui_color_from_hex(0xF4F4F4),
-                             ui_color_from_hex(0x1E1A2F));
-    ui_column_add_control(app.column, ui_text_widget_mutable(header), false, "header");
-    ui_column_add_control(app.column, ui_text_widget_mutable(app.subtitle), false, "subtitle");
+    title = create_text_line("BareUI Single Scene Lab", ui_color_from_hex(0xFAFAFF),
+                             ui_color_from_hex(0x0F1420), 36);
+    if (!title) {
+        goto cleanup;
+    }
+    subtitle = create_text_line(
+        "Все виджеты на одной сцене и взаимодействуют друг с другом", ui_color_from_hex(0x91C7FF),
+        ui_color_from_hex(0x0F1420), 28);
+    if (!subtitle) {
+        goto cleanup;
+    }
+    ui_column_add_control(root, ui_text_widget_mutable(title), false, "title");
+    ui_column_add_control(root, ui_text_widget_mutable(subtitle), false, "subtitle");
 
-    ui_column_set_spacing(app.column, 8);
-    app.detail = make_text("Последнее действие: не выбрано.", ui_color_from_hex(0xC8EAFB),
-                           ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(app.detail, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(app.detail), false, "detail");
-    ui_text_t *language_sample = make_text(
-        "Русский язык поддерживается.", ui_color_from_hex(0xB2FFE1),
-        ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(language_sample, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(language_sample), false, "language");
-
-    ui_row_t *actions = ui_row_create();
-    ui_row_set_spacing(actions, 6);
-    ui_button_t *btn1 = make_button("Запустить", 10, 6, 0);
-    ui_button_t *btn2 = make_button("Создать", 10, 6, 0);
-    ui_button_t *btn3 = make_button("История", 10, 6, 0);
-    ui_button_set_on_click(btn1, on_action_click, &app);
-    ui_button_set_on_click(btn2, on_action_click, &app);
-    ui_button_set_on_click(btn3, on_action_click, &app);
-    apply_row_style(actions, ui_color_from_hex(0x1E1A2F), 6, 40);
-    ui_row_add_control(actions, ui_button_widget_mutable(btn1), false, "btn1");
-    ui_row_add_control(actions, ui_button_widget_mutable(btn2), false, "btn2");
-    ui_row_add_control(actions, ui_button_widget_mutable(btn3), false, "btn3");
-    ui_column_add_control(app.column, ui_row_widget_mutable(actions), false, "row_actions");
-
-    ui_text_t *outlined_caption = make_text(
-        "Outlined buttons mark medium-emphasis actions that complement filled controls.",
-        ui_color_from_hex(0xBCE0FF), ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(outlined_caption, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(outlined_caption), false, "outlined_caption");
-    ui_row_t *outlined_row = ui_row_create();
-    ui_row_set_spacing(outlined_row, 8);
-    apply_row_style(outlined_row, ui_color_from_hex(0x1E1A2F), 5, 36);
-    ui_button_t *outlined_btn = make_outlined_button("Подробнее", 12, 6, 0);
-    ui_button_set_on_click(outlined_btn, on_action_click, &app);
-    ui_row_add_control(outlined_row, ui_button_widget_mutable(outlined_btn), true, "btn_outlined");
-    ui_column_add_control(app.column, ui_row_widget_mutable(outlined_row), false, "row_outlined");
-
-    ui_row_t *checkbox_row = ui_row_create();
-    ui_row_set_spacing(checkbox_row, 10);
-    apply_row_style(checkbox_row, ui_color_from_hex(0x1E1A2F), 5, 44);
-    ui_checkbox_t *checkbox_primary = make_checkbox("Активировать режим");
-    ui_checkbox_t *checkbox_secondary = make_checkbox("Beta-тестирование");
-    ui_checkbox_set_tristate(checkbox_secondary, true);
-    ui_checkbox_set_state(checkbox_secondary, UI_CHECKBOX_STATE_INDETERMINATE);
-    ui_checkbox_set_label_position(checkbox_secondary, UI_CHECKBOX_LABEL_POSITION_LEFT);
-    ui_checkbox_set_on_change(checkbox_primary, on_checkbox_change, &app);
-    ui_checkbox_set_on_change(checkbox_secondary, on_checkbox_change, &app);
-    ui_row_add_control(checkbox_row, ui_checkbox_widget_mutable(checkbox_primary), true, "checkbox_primary");
-    ui_row_add_control(checkbox_row, ui_checkbox_widget_mutable(checkbox_secondary), true, "checkbox_secondary");
-    ui_column_add_control(app.column, ui_row_widget_mutable(checkbox_row), false, "row_checkboxes");
-
-    ui_button_t *theme_btn = make_button("Сменить тему", 10, 5, 32);
+    control_row = ui_row_create();
+    if (!control_row) {
+        goto cleanup;
+    }
+    ui_row_set_spacing(control_row, 8);
+    style_panel_row(control_row, ui_color_from_hex(0x12182B), 56);
+    boost_btn = create_button("Boost", ui_color_from_hex(0x1B3A73), ui_color_from_hex(0x90D2FF));
+    if (!boost_btn) {
+        goto cleanup;
+    }
+    reset_btn = create_button("Reset", ui_color_from_hex(0x2A2F3D), ui_color_from_hex(0xFF9A7B));
+    if (!reset_btn) {
+        goto cleanup;
+    }
+    theme_btn = create_button("Theme", ui_color_from_hex(0x3B2C6F), ui_color_from_hex(0xC0A0FF));
+    if (!theme_btn) {
+        goto cleanup;
+    }
+    ui_button_set_on_click(boost_btn, on_increment_click, &app);
+    ui_button_set_on_click(reset_btn, on_reset_click, &app);
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
-    ui_row_t *theme_row = ui_row_create();
-    ui_row_set_spacing(theme_row, 4);
-    apply_row_style(theme_row, ui_color_from_hex(0x1E1A2F), 5, 36);
-    ui_row_add_control(theme_row, ui_button_widget_mutable(theme_btn), true, "theme");
-    ui_column_add_control(app.column, ui_row_widget_mutable(theme_row), false, "row_theme");
+    ui_row_add_control(control_row, ui_button_widget_mutable(boost_btn), true, "boost");
+    ui_row_add_control(control_row, ui_button_widget_mutable(reset_btn), true, "reset");
+    ui_row_add_control(control_row, ui_button_widget_mutable(theme_btn), true, "theme");
+    ui_column_add_control(root, ui_row_widget_mutable(control_row), false, "controls");
 
-    ui_text_t *filled_hint = make_text(
-        "Filled buttons highlight critical actions (Save, Join now, Confirm).",
-        ui_color_from_hex(0xFFD166), ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(filled_hint, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(filled_hint), false, "filled_hint");
-
-    ui_row_t *final_actions = ui_row_create();
-    ui_row_set_spacing(final_actions, 8);
-    apply_row_style(final_actions, ui_color_from_hex(0x1E1A2F), 6, 48);
-    ui_button_t *save_btn = make_filled_button("Сохранить",
-                                               ui_color_from_hex(0x1CC964),
-                                               ui_color_from_hex(0x4AD687),
-                                               ui_color_from_hex(0x14834D), 10, 6, 100);
-    ui_button_t *join_btn = make_filled_button("Присоединиться",
-                                               ui_color_from_hex(0x7C4DFF),
-                                               ui_color_from_hex(0xA27EFF),
-                                               ui_color_from_hex(0x5B32B7), 10, 6, 100);
-    ui_button_t *confirm_btn = make_filled_button("Подтвердить",
-                                                  ui_color_from_hex(0xFF6F43),
-                                                  ui_color_from_hex(0xFFA07C),
-                                                  ui_color_from_hex(0xC04832), 10, 6, 100);
-    ui_button_set_on_click(save_btn, on_action_click, &app);
-    ui_button_set_on_click(join_btn, on_action_click, &app);
-    ui_button_set_on_click(confirm_btn, on_action_click, &app);
-    ui_row_add_control(final_actions, ui_button_widget_mutable(save_btn), false, "filled_save");
-    ui_row_add_control(final_actions, ui_button_widget_mutable(join_btn), false, "filled_join");
-    ui_row_add_control(final_actions, ui_button_widget_mutable(confirm_btn), false,
-                       "filled_confirm");
-    ui_column_add_control(app.column, ui_row_widget_mutable(final_actions), false,
-                          "row_filled_actions");
-
-    ui_text_t *elevated_note = make_text(
-        "Elevated buttons are filled tonal buttons with a shadow. To prevent shadow creep, only "
-        "use them when absolutely necessary, such as when the button requires visual separation "
-        "from a patterned background.",
-        ui_color_from_hex(0xB6CCFF), ui_color_from_hex(0x141521));
-    ui_text_set_font(elevated_note, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(elevated_note), false,
-                         "elevated_note");
-    ui_text_t *pattern_decoration =
-        make_text("Pattern: .:.:.:.:.", ui_color_from_hex(0x8EA4FF), ui_color_from_hex(0x141521));
-    ui_text_set_font(pattern_decoration, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(pattern_decoration), false,
-                         "elevated_pattern");
-    ui_button_t *elevated_btn = make_elevated_button("Elevated action");
-    ui_button_set_on_click(elevated_btn, on_action_click, &app);
-    ui_row_t *elevated_row = ui_row_create();
-    ui_row_set_spacing(elevated_row, 4);
-    apply_row_style(elevated_row, ui_color_from_hex(0x141523), 6, 44);
-    ui_row_add_control(elevated_row, ui_button_widget_mutable(elevated_btn), true,
-                       "elevated");
-    ui_column_add_control(app.column, ui_row_widget_mutable(elevated_row), false,
-                         "row_elevated");
-
-    ui_text_t *progress_caption_circle = make_text(
-        "Progress indicators show determinate and indeterminate work in progress.",
-        ui_color_from_hex(0xB1D4FF), ui_color_from_hex(0x141521));
-    ui_text_set_font(progress_caption_circle, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(progress_caption_circle), false,
-                         "progress_caption_circle");
-    ui_row_t *progress_row = ui_row_create();
-    ui_row_set_spacing(progress_row, 12);
-    apply_row_style(progress_row, ui_color_from_hex(0x141521), 8, 82);
-    ui_progressring_t *determinate_ring = ui_progressring_create();
-    ui_widget_set_bounds(ui_progressring_widget_mutable(determinate_ring), 0, 0, 68, 68);
-    ui_progressring_set_value(determinate_ring, 0.67);
-    ui_progressring_set_progress_color(determinate_ring, ui_color_from_hex(0x63E6FF));
-    ui_progressring_set_track_color(determinate_ring, ui_color_from_hex(0x10131F));
-    ui_progressring_set_tooltip(determinate_ring, "Determinate progress");
-    ui_row_add_control(progress_row, ui_progressring_widget_mutable(determinate_ring), false,
-                       "ring_determinate");
-    ui_progressring_t *indeterminate_ring = ui_progressring_create();
-    ui_widget_set_bounds(ui_progressring_widget_mutable(indeterminate_ring), 0, 0, 68, 68);
-    ui_progressring_clear_value(indeterminate_ring);
-    ui_progressring_set_progress_color(indeterminate_ring, ui_color_from_hex(0xC7FFED));
-    ui_progressring_set_track_color(indeterminate_ring, ui_color_from_hex(0x0F1119));
-    ui_progressring_set_tooltip(indeterminate_ring, "Indeterminate spinner");
-    ui_row_add_control(progress_row, ui_progressring_widget_mutable(indeterminate_ring), false,
-                       "ring_indeterminate");
-    ui_column_add_control(app.column, ui_row_widget_mutable(progress_row), false,
-                         "row_progress");
-
-    ui_row_t *stats = ui_row_create();
-    ui_row_set_spacing(stats, 10);
-    apply_row_style(stats, ui_color_from_hex(0x1E1A2F), 4, 32);
-    app.status = make_text("Interactions will appear here.", ui_color_from_hex(0xFFFFFF),
-                           ui_color_from_hex(0x1E1A2F));
-    app.clock = make_text("Uptime 0.0 s", ui_color_from_hex(0xAACFFF),
-                         ui_color_from_hex(0x1E1A2F));
-    ui_row_add_control(stats, ui_text_widget_mutable(app.status), true, "status");
-    ui_row_add_control(stats, ui_text_widget_mutable(app.clock), true, "clock");
-    ui_column_add_control(app.column, ui_row_widget_mutable(stats), false, "row_stats");
-
-    ui_text_t *linear_progress_caption = make_text(
-        "Linear progress indicators / Линейные индикаторы",
-        ui_color_from_hex(0x88C6FF), ui_color_from_hex(0x1E1A2F));
-    ui_text_set_font(linear_progress_caption, bareui_font_default());
-    ui_column_add_control(app.column, ui_text_widget_mutable(linear_progress_caption), false, "progress_caption");
-    app.progress_determinate = make_progressbar("Download progress", ui_color_from_hex(0x23273C),
-                                                ui_color_from_hex(0xFFD166), ui_color_from_hex(0x4F5CA8), true);
-    if (app.progress_determinate) {
-        ui_widget_set_bounds(ui_progressbar_widget_mutable(app.progress_determinate), 0, 0,
-                             UI_FRAMEBUFFER_WIDTH, 32);
-        ui_column_add_control(app.column, ui_progressbar_widget_mutable(app.progress_determinate),
-                              false, "progress_determinate");
+    ring_row = ui_row_create();
+    if (!ring_row) {
+        goto cleanup;
     }
-    app.progress_indeterminate = make_progressbar("Sync in progress", ui_color_from_hex(0x1C1F2E),
-                                                  ui_color_from_hex(0x64FFC6), ui_color_from_hex(0x1F2936),
-                                                  false);
-    if (app.progress_indeterminate) {
-        ui_widget_set_bounds(ui_progressbar_widget_mutable(app.progress_indeterminate), 0, 0,
-                             UI_FRAMEBUFFER_WIDTH, 28);
-        ui_column_add_control(app.column, ui_progressbar_widget_mutable(app.progress_indeterminate),
-                              false, "progress_indeterminate");
+    ui_row_set_spacing(ring_row, 12);
+    style_panel_row(ring_row, ui_color_from_hex(0x12182B), 92);
+    ring = ui_progressring_create();
+    if (!ring) {
+        goto cleanup;
     }
+    ui_widget_set_bounds(ui_progressring_widget_mutable(ring), 0, 0, 68, 68);
+    ui_progressring_set_value(ring, app.progress_value);
+    ui_progressring_set_progress_color(ring, ui_color_from_hex(0x6FFDDC));
+    ui_progressring_set_track_color(ring, ui_color_from_hex(0x111828));
+    ui_progressring_set_tooltip(ring, "Синхронизированный индикатор");
+    ui_row_add_control(ring_row, ui_progressring_widget_mutable(ring), false, "ring");
+    ring_hint = create_text_line("Кольцо отражает слайдер", ui_color_from_hex(0xCED8FF),
+                                 ui_color_from_hex(0x12182B), 64);
+    if (!ring_hint) {
+        goto cleanup;
+    }
+    ui_row_add_control(ring_row, ui_text_widget_mutable(ring_hint), true, "ring_hint");
+    ui_column_add_control(root, ui_row_widget_mutable(ring_row), false, "ring_row");
+    app.progress_ring = ring;
 
-    ui_scene_set_root(scene, ui_column_widget_mutable(app.column));
-    ui_scene_set_user_data(scene, &app);
-    ui_scene_set_tick(scene, app_tick);
+    slider = ui_slider_create();
+    if (!slider) {
+        goto cleanup;
+    }
+    app.slider = slider;
+    ui_slider_set_min(slider, 0);
+    ui_slider_set_max(slider, 100);
+    ui_slider_set_divisions(slider, 20);
+    ui_slider_set_round(slider, 0);
+    ui_slider_set_label(slider, "{value}%");
+    ui_slider_set_active_color(slider, ui_color_from_hex(0x6FFDDC));
+    ui_slider_set_inactive_color(slider, ui_color_from_hex(0x101523));
+    ui_slider_set_thumb_color(slider, ui_color_from_hex(0xF6F6FF));
+    ui_slider_set_overlay_color(slider, ui_color_from_hex(0x6FFDDC));
+    ui_slider_set_on_change(slider, on_slider_change, &app);
+    ui_slider_set_value(slider, app.progress_value * 100.0);
+    ui_style_t slider_style;
+    ui_style_init(&slider_style);
+    slider_style.background_color = ui_color_from_hex(0x12182B);
+    slider_style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR;
+    ui_widget_set_style(ui_slider_widget_mutable(slider), &slider_style);
+    ui_widget_set_bounds(ui_slider_widget_mutable(slider), 0, 0, UI_FRAMEBUFFER_WIDTH, 52);
+    ui_column_add_control(root, ui_slider_widget_mutable(slider), false, "slider");
 
+    progress = ui_progressbar_create();
+    if (!progress) {
+        goto cleanup;
+    }
+    app.progress_bar = progress;
+    ui_widget_set_bounds(ui_progressbar_widget_mutable(progress), 0, 0, UI_FRAMEBUFFER_WIDTH, 30);
+    ui_progressbar_set_bar_height(progress, 8);
+    ui_progressbar_set_border_radius(progress, ui_border_radius_all(10));
+    ui_progressbar_set_tooltip(progress, "Линейный индикатор");
+    ui_column_add_control(root, ui_progressbar_widget_mutable(progress), false, "bar");
+
+    toggles = ui_row_create();
+    if (!toggles) {
+        goto cleanup;
+    }
+    ui_row_set_spacing(toggles, 12);
+    style_panel_row(toggles, ui_color_from_hex(0x12182B), 52);
+    mode = ui_switch_create();
+    if (mode) {
+        ui_switch_set_label(mode, "Performance");
+        ui_switch_set_value(mode, true);
+        ui_switch_set_on_change(mode, on_switch_change, &app);
+        ui_row_add_control(toggles, ui_switch_widget_mutable(mode), true, "mode");
+        app.mode_switch = mode;
+    }
+    ring_toggle = ui_checkbox_create();
+    if (ring_toggle) {
+        ui_checkbox_set_label(ring_toggle, "Show gauge");
+        ui_checkbox_set_state(ring_toggle, UI_CHECKBOX_STATE_CHECKED);
+        ui_checkbox_set_on_change(ring_toggle, on_checkbox_change, &app);
+        ui_row_add_control(toggles, ui_checkbox_widget_mutable(ring_toggle), true, "ring_toggle");
+        app.ring_checkbox = ring_toggle;
+    }
+    ui_column_add_control(root, ui_row_widget_mutable(toggles), false, "toggles");
+
+    status_row = ui_row_create();
+    if (!status_row) {
+        goto cleanup;
+    }
+    ui_row_set_spacing(status_row, 12);
+    style_panel_row(status_row, ui_color_from_hex(0x12182B), 48);
+    status_line = create_text_line("Готов к взаимодействию", ui_color_from_hex(0xF7F7FF),
+                                   ui_color_from_hex(0x12182B), 44);
+    if (!status_line) {
+        goto cleanup;
+    }
+    detail_line = create_text_line("Готовность: 34%", ui_color_from_hex(0x9DEFFF),
+                                   ui_color_from_hex(0x12182B), 44);
+    if (!detail_line) {
+        goto cleanup;
+    }
+    app.status = status_line;
+    app.detail = detail_line;
+    ui_row_add_control(status_row, ui_text_widget_mutable(status_line), true, "status_text");
+    ui_row_add_control(status_row, ui_text_widget_mutable(detail_line), true, "detail_text");
+    ui_column_add_control(root, ui_row_widget_mutable(status_row), false, "status_row");
+
+    apply_progress_mode(&app, true);
+    refresh_progress(&app);
+
+    ui_scene_set_root(scene, ui_column_widget_mutable(root));
     ui_scene_run(scene);
+    exit_code = 0;
 
-    ui_scene_destroy(scene);
-    ui_row_destroy(actions);
-    ui_row_destroy(outlined_row);
-    ui_row_destroy(theme_row);
-    ui_row_destroy(final_actions);
-    ui_row_destroy(elevated_row);
-    ui_row_destroy(progress_row);
-    ui_row_destroy(stats);
-    ui_column_destroy(app.column);
-    ui_text_destroy(header);
-    ui_text_destroy(app.subtitle);
-    ui_text_destroy(app.detail);
-    ui_text_destroy(language_sample);
-    ui_text_destroy(filled_hint);
-    ui_text_destroy(outlined_caption);
-    ui_text_destroy(elevated_note);
-    ui_text_destroy(pattern_decoration);
-    ui_text_destroy(progress_caption_circle);
-    ui_text_destroy(linear_progress_caption);
-    ui_text_destroy(app.status);
-    ui_text_destroy(app.clock);
-    ui_button_destroy(btn1);
-    ui_button_destroy(btn2);
-    ui_button_destroy(btn3);
-    ui_button_destroy(outlined_btn);
+cleanup:
+    ui_row_destroy(status_row);
+    ui_row_destroy(toggles);
+    ui_checkbox_destroy(ring_toggle);
+    ui_switch_destroy(mode);
+    ui_progressbar_destroy(progress);
+    ui_slider_destroy(slider);
+    ui_text_destroy(ring_hint);
+    ui_progressring_destroy(ring);
+    ui_row_destroy(ring_row);
+    ui_row_destroy(control_row);
+    ui_column_destroy(root);
+    ui_button_destroy(boost_btn);
+    ui_button_destroy(reset_btn);
     ui_button_destroy(theme_btn);
-    ui_button_destroy(save_btn);
-    ui_button_destroy(join_btn);
-    ui_button_destroy(confirm_btn);
-    ui_button_destroy(elevated_btn);
-    ui_progressring_destroy(determinate_ring);
-    ui_progressring_destroy(indeterminate_ring);
-
-    return 0;
+    ui_text_destroy(title);
+    ui_text_destroy(subtitle);
+    ui_text_destroy(status_line);
+    ui_text_destroy(detail_line);
+    if (scene) {
+        ui_scene_destroy(scene);
+    }
+    return exit_code;
 }
