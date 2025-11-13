@@ -228,7 +228,7 @@ static bool ui_progressring_handle_event(ui_widget_t *widget, const ui_event_t *
     return false;
 }
 
-static void ui_progressring_destroy(ui_widget_t *widget)
+static void ui_progressring_widget_destroy(ui_widget_t *widget)
 {
     if (!widget) {
         return;
@@ -243,7 +243,7 @@ static void ui_progressring_destroy(ui_widget_t *widget)
 static const ui_widget_ops_t ui_progressring_ops = {
     .render = ui_progressring_render,
     .handle_event = ui_progressring_handle_event,
-    .destroy = ui_progressring_destroy,
+    .destroy = ui_progressring_widget_destroy,
     .style_changed = NULL,
 };
 
