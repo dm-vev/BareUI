@@ -440,6 +440,7 @@ int main(void)
     ui_row_destroy(theme_row);
     ui_row_destroy(final_actions);
     ui_row_destroy(elevated_row);
+    ui_row_destroy(progress_row);
     ui_row_destroy(stats);
     ui_column_destroy(app.column);
     ui_text_destroy(header);
@@ -449,6 +450,7 @@ int main(void)
     ui_text_destroy(filled_hint);
     ui_text_destroy(outlined_caption);
     ui_text_destroy(elevated_note);
+    ui_text_destroy(progress_caption);
     ui_text_destroy(app.status);
     ui_text_destroy(app.clock);
     ui_button_destroy(btn1);
@@ -460,6 +462,8 @@ int main(void)
     ui_button_destroy(join_btn);
     ui_button_destroy(confirm_btn);
     ui_button_destroy(elevated_btn);
+    ui_progressring_destroy(determinate_ring);
+    ui_progressring_destroy(indeterminate_ring);
 
     return 0;
 }
