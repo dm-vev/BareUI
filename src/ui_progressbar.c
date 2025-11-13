@@ -138,6 +138,10 @@ static void ui_progressbar_draw_border(ui_context_t *ctx, const ui_rect_t *rect,
     if (bw > height) {
         bw = height;
     }
+    int vertical_bw = bw;
+    if (vertical_bw > width) {
+        vertical_bw = width;
+    }
     if (sides & UI_BORDER_TOP) {
         ui_context_fill_rect(ctx, rect->x, rect->y, width, bw, color);
     }
@@ -145,10 +149,10 @@ static void ui_progressbar_draw_border(ui_context_t *ctx, const ui_rect_t *rect,
         ui_context_fill_rect(ctx, rect->x, rect->y + height - bw, width, bw, color);
     }
     if (sides & UI_BORDER_LEFT) {
-        ui_context_fill_rect(ctx, rect->x, rect->y, bw, height, color);
+        ui_context_fill_rect(ctx, rect->x, rect->y, vertical_bw, height, color);
     }
     if (sides & UI_BORDER_RIGHT) {
-        ui_context_fill_rect(ctx, rect->x + width - bw, rect->y, bw, height, color);
+        ui_context_fill_rect(ctx, rect->x + width - vertical_bw, rect->y, vertical_bw, height, color);
     }
 }
 
@@ -323,7 +327,7 @@ void ui_progressbar_init(ui_progressbar_t *progressbar)
     default_style.flags |= UI_STYLE_FLAG_BORDER_COLOR;
     default_style.border_width = progressbar->border_width;
     default_style.border_sides = progressbar->border_sides;
-    progressbar->box_shadow.enabled = false;
+    default_style.flags |= UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES;
     ui_widget_set_style(&progressbar->base, &default_style);
     ui_progressbar_reset_animation(progressbar);
 }

@@ -19,7 +19,7 @@
 Outlined buttons are medium-emphasis controls for actions that are important but not the primary call to action. They rely on a thin border and transparent background so they can sit next to filled buttons as secondary alternatives; the demo in `tests/main.c` shows how to style them.
 
 ## Button styles
-`ui_button` может имитировать разные стили, но для повышения читаемости важно выбирать их правильно. Первичная кнопка — это заполненный фон (filled tonal) без лишних теней, а elevated-кнопка просто добавляет к ней аккуратную тень. Чтобы тень не "ползла" по интерфейсу, применяйте такие кнопки только тогда, когда элемент должен визуально отделиться от текстурированного или узорного фона.
+`ui_button` может имитировать разные стили, но для повышения читаемости важно выбирать их правильно. Первичная кнопка — это заполненный фон (filled tonal) без лишних теней, а elevated-кнопка просто добавляет к ней аккуратную тень. Чтобы тень не "ползла" по интерфейсу, применяйте такие кнопки только тогда, когда элемент должен визуально отделиться от текстурированного или узорного фона. To prevent shadow creep, only use them when absolutely necessary, such as when the button requires visual separation from a patterned background.
 
 Filled buttons have the most visual impact after the FloatingActionButton and should be reserved for important, final actions such as Save, Join now, or Confirm. The `tests/main.c` showcase now adds a dedicated filled row with bold backgrounds, hover/pressed feedback, and a lift shadow to illustrate this pattern.
 
