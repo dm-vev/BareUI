@@ -339,6 +339,37 @@ int main(void)
     ui_row_add_control(theme_row, ui_button_widget_mutable(theme_btn), true, "theme");
     ui_column_add_control(app.column, ui_row_widget_mutable(theme_row), false, "row_theme");
 
+    ui_text_t *filled_hint = make_text(
+        "Filled buttons highlight critical actions (Save, Join now, Confirm).",
+        ui_color_from_hex(0xFFD166), ui_color_from_hex(0x1E1A2F));
+    ui_text_set_font(filled_hint, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(filled_hint), false, "filled_hint");
+
+    ui_row_t *final_actions = ui_row_create();
+    ui_row_set_spacing(final_actions, 8);
+    apply_row_style(final_actions, ui_color_from_hex(0x1E1A2F), 6, 48);
+    ui_button_t *save_btn = make_filled_button("Сохранить",
+                                             ui_color_from_hex(0x1CC964),
+                                             ui_color_from_hex(0x4AD687),
+                                             ui_color_from_hex(0x14834D), 10, 6, 100);
+    ui_button_t *join_btn = make_filled_button("Присоединиться",
+                                             ui_color_from_hex(0x7C4DFF),
+                                             ui_color_from_hex(0xA27EFF),
+                                             ui_color_from_hex(0x5B32B7), 10, 6, 100);
+    ui_button_t *confirm_btn = make_filled_button("Подтвердить",
+                                                ui_color_from_hex(0xFF6F43),
+                                                ui_color_from_hex(0xFFA07C),
+                                                ui_color_from_hex(0xC04832), 10, 6, 100);
+    ui_button_set_on_click(save_btn, on_action_click, &app);
+    ui_button_set_on_click(join_btn, on_action_click, &app);
+    ui_button_set_on_click(confirm_btn, on_action_click, &app);
+    ui_row_add_control(final_actions, ui_button_widget_mutable(save_btn), false, "filled_save");
+    ui_row_add_control(final_actions, ui_button_widget_mutable(join_btn), false, "filled_join");
+    ui_row_add_control(final_actions, ui_button_widget_mutable(confirm_btn), false,
+                       "filled_confirm");
+    ui_column_add_control(app.column, ui_row_widget_mutable(final_actions), false,
+                          "row_filled_actions");
+
     ui_text_t *elevated_note = make_text(
         "Elevated buttons are filled tonal buttons with a shadow. Use them only when "
         "they must separate from patterned backgrounds.",
