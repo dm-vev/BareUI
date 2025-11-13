@@ -11,6 +11,7 @@
 
 #include "ui_primitives.h"
 #include "ui_font.h"
+#include "ui_shadow.h"
 
 #define UI_BUTTON_LONG_PRESS_MS 500
 
@@ -22,6 +23,8 @@ struct ui_button {
     ui_color_t text_color;
     ui_color_t hover_color;
     ui_color_t pressed_color;
+    ui_color_t border_color;
+    int border_width;
     bool hovered;
     bool pressed;
     bool focused;
@@ -135,7 +138,11 @@ static void ui_button_apply_style(ui_widget_t *widget, const ui_style_t *style)
         button->hover_color = style->accent_color;
     }
     if (style->flags & UI_STYLE_FLAG_BORDER_COLOR) {
+        button->border_color = style->border_color;
         button->pressed_color = style->border_color;
+    }
+    if (style->flags & UI_STYLE_FLAG_BORDER_WIDTH) {
+        button->border_width = style->border_width;
     }
 }
 
@@ -267,8 +274,36 @@ static bool ui_button_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
     if (!button || !bounds) {
         return false;
     }
+    const ui_style_t *style = &button->base.style;
+    ui_shadow_t shadow = {
+        .enabled = style->shadow_enabled,
+        .offset_x = style->shadow_offset_x,
+        .offset_y = style->shadow_offset_y,
+        .color = style->shadow_color ? style->shadow_color : ui_color_from_hex(0x000000),
+        .blur = 0
+    };
+    ui_shadow_render(ctx, bounds, &shadow);
     ui_context_fill_rect(ctx, bounds->x, bounds->y, bounds->width, bounds->height,
                          ui_button_background(button));
+    int border_width = button->border_width;
+    if (style->flags & UI_STYLE_FLAG_BORDER_WIDTH) {
+        border_width = style->border_width;
+    }
+    if (border_width > 0) {
+        ui_color_t border = (style->flags & UI_STYLE_FLAG_BORDER_COLOR)
+                                ? style->border_color
+                                : button->border_color;
+        for (int w = 0; w < border_width; ++w) {
+            int x = bounds->x + w;
+            int y = bounds->y + w;
+            int width = bounds->width - w * 2;
+            int height = bounds->height - w * 2;
+            ui_context_fill_rect(ctx, x, y, width, 1, border);
+            ui_context_fill_rect(ctx, x, y + height - 1, width, 1, border);
+            ui_context_fill_rect(ctx, x, y, 1, height, border);
+            ui_context_fill_rect(ctx, x + width - 1, y, 1, height, border);
+        }
+    }
     int text_width = ui_button_measure_text(button);
     const bareui_font_t *font = button->font ? button->font : bareui_font_default();
     int text_height = font->height;
@@ -338,6 +373,8 @@ void ui_button_init(ui_button_t *button)
     button->text_color = ui_color_from_hex(0xFFFFFF);
     button->hover_color = ui_color_from_hex(0x303030);
     button->pressed_color = ui_color_from_hex(0x101010);
+    button->border_color = ui_color_from_hex(0x444444);
+    button->border_width = 2;
     button->hovered = false;
     button->pressed = false;
     button->focused = false;
@@ -353,8 +390,15 @@ void ui_button_init(ui_button_t *button)
     default_style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
     default_style.accent_color = button->hover_color;
     default_style.flags |= UI_STYLE_FLAG_ACCENT_COLOR;
-    default_style.border_color = button->pressed_color;
+    default_style.border_color = button->border_color;
     default_style.flags |= UI_STYLE_FLAG_BORDER_COLOR;
+    default_style.border_width = 2;
+    default_style.flags |= UI_STYLE_FLAG_BORDER_WIDTH;
+    default_style.shadow_enabled = true;
+    default_style.shadow_color = ui_color_from_hex(0x050711);
+    default_style.shadow_offset_x = 1;
+    default_style.shadow_offset_y = 1;
+    default_style.flags |= UI_STYLE_FLAG_SHADOW;
     ui_widget_set_style(&button->base, &default_style);
 }
 

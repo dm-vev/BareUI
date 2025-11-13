@@ -46,12 +46,18 @@ typedef struct {
     ui_style_prop_t custom_props[UI_STYLE_MAX_CUSTOM_PROPS];
     size_t custom_count;
     uint32_t flags;
+    int border_sides;
+    int border_width;
+    ui_color_t border_color;
+    ui_box_shadow_t box_shadow;
 } ui_style_t;
 
 #define UI_STYLE_FLAG_BACKGROUND_COLOR (1u << 0)
 #define UI_STYLE_FLAG_FOREGROUND_COLOR (1u << 1)
 #define UI_STYLE_FLAG_BORDER_COLOR     (1u << 2)
 #define UI_STYLE_FLAG_ACCENT_COLOR     (1u << 3)
+#define UI_STYLE_FLAG_BORDER_WIDTH     (1u << 4)
+#define UI_STYLE_FLAG_SHADOW           (1u << 5)
 
 typedef struct ui_widget ui_widget_t;
 

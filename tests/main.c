@@ -32,6 +32,7 @@ static ui_text_t *make_text(const char *value, ui_color_t fg, ui_color_t bg)
     style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR | UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_text_widget_mutable(text), &style);
     ui_text_set_value(text, value);
+    ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, BAREUI_FONT_HEIGHT + 4);
     return text;
 }
 
@@ -48,9 +49,16 @@ static ui_button_t *make_button(const char *label)
     style.foreground_color = ui_color_from_hex(0xF2F2F2);
     style.accent_color = ui_color_from_hex(0x5A9ADB);
     style.border_color = ui_color_from_hex(0x405070);
+    style.border_width = 1;
+    style.shadow_enabled = true;
+    style.shadow_color = ui_color_from_hex(0x000000);
+    style.shadow_offset_x = 1;
+    style.shadow_offset_y = 1;
     style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
-                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR;
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_SHADOW;
     ui_widget_set_style(ui_button_widget_mutable(button), &style);
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, 20);
     return button;
 }
 
@@ -61,6 +69,15 @@ static void apply_column_style(ui_column_t *column, ui_color_t background)
     style.background_color = background;
     style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_column_widget_mutable(column), &style);
+}
+
+static void apply_row_style(ui_row_t *row, ui_color_t background)
+{
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = background;
+    style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
+    ui_widget_set_style(ui_row_widget_mutable(row), &style);
 }
 
 static void update_status(app_state_t *app, const char *message)
@@ -156,12 +173,14 @@ int main(void)
 
     ui_row_t *actions = ui_row_create();
     ui_row_set_spacing(actions, 6);
+    ui_widget_set_bounds(ui_row_widget_mutable(actions), 0, 0, UI_FRAMEBUFFER_WIDTH, 26);
     ui_button_t *btn1 = make_button("Launch");
     ui_button_t *btn2 = make_button("Compose");
     ui_button_t *btn3 = make_button("Inspect history");
     ui_button_set_on_click(btn1, on_action_click, &app);
     ui_button_set_on_click(btn2, on_action_click, &app);
     ui_button_set_on_click(btn3, on_action_click, &app);
+    apply_row_style(actions, ui_color_from_hex(0x1E1A2F));
     ui_row_add_control(actions, ui_button_widget_mutable(btn1), true, "btn1");
     ui_row_add_control(actions, ui_button_widget_mutable(btn2), true, "btn2");
     ui_row_add_control(actions, ui_button_widget_mutable(btn3), true, "btn3");
@@ -171,11 +190,15 @@ int main(void)
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
     ui_row_t *theme_row = ui_row_create();
     ui_row_set_spacing(theme_row, 4);
+    apply_row_style(theme_row, ui_color_from_hex(0x1E1A2F));
+    ui_widget_set_bounds(ui_row_widget_mutable(theme_row), 0, 0, UI_FRAMEBUFFER_WIDTH, 24);
     ui_row_add_control(theme_row, ui_button_widget_mutable(theme_btn), true, "theme");
     ui_column_add_control(app.column, ui_row_widget_mutable(theme_row), false, "row_theme");
 
     ui_row_t *stats = ui_row_create();
     ui_row_set_spacing(stats, 10);
+    apply_row_style(stats, ui_color_from_hex(0x1E1A2F));
+    ui_widget_set_bounds(ui_row_widget_mutable(stats), 0, 0, UI_FRAMEBUFFER_WIDTH, 24);
     app.status = make_text("Interactions will appear here.", ui_color_from_hex(0xFFFFFF),
                            ui_color_from_hex(0x1E1A2F));
     app.clock = make_text("Uptime 0.0 s", ui_color_from_hex(0xAACFFF),
