@@ -228,22 +228,10 @@ static bool ui_progressring_handle_event(ui_widget_t *widget, const ui_event_t *
     return false;
 }
 
-static void ui_progressring_widget_destroy(ui_widget_t *widget)
-{
-    if (!widget) {
-        return;
-    }
-    ui_progressring_t *ring = (ui_progressring_t *)widget;
-    free(ring->semantics_label);
-    free(ring->semantics_value);
-    free(ring->tooltip);
-    free(ring);
-}
-
 static const ui_widget_ops_t ui_progressring_ops = {
     .render = ui_progressring_render,
     .handle_event = ui_progressring_handle_event,
-    .destroy = ui_progressring_widget_destroy,
+    .destroy = NULL,
     .style_changed = NULL,
 };
 
