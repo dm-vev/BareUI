@@ -49,4 +49,7 @@ void ui_button_set_on_focus(ui_button_t *button, ui_button_event_fn handler, voi
 void ui_button_set_on_blur(ui_button_t *button, ui_button_event_fn handler, void *user_data);
 void ui_button_set_on_long_press(ui_button_t *button, ui_button_event_fn handler, void *user_data);
 
+const ui_widget_t *ui_button_widget(const ui_button_t *button);
+ui_widget_t *ui_button_widget_mutable(ui_button_t *button);
+
 #endif

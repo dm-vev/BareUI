@@ -381,3 +381,13 @@ bool ui_text_italic(const ui_text_t *text)
 {
     return text ? text->italic : false;
 }
+
+const ui_widget_t *ui_text_widget(const ui_text_t *text)
+{
+    return text ? &text->base : NULL;
+}
+
+ui_widget_t *ui_text_widget_mutable(ui_text_t *text)
+{
+    return text ? &text->base : NULL;
+}

@@ -54,4 +54,7 @@ bool ui_text_rtl(const ui_text_t *text);
 void ui_text_set_italic(ui_text_t *text, bool italic);
 bool ui_text_italic(const ui_text_t *text);
 
+const ui_widget_t *ui_text_widget(const ui_text_t *text);
+ui_widget_t *ui_text_widget_mutable(ui_text_t *text);
+
 #endif

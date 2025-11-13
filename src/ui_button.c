@@ -535,3 +535,13 @@ void ui_button_set_on_long_press(ui_button_t *button, ui_button_event_fn handler
         button->on_long_press_data = user_data;
     }
 }
+
+const ui_widget_t *ui_button_widget(const ui_button_t *button)
+{
+    return button ? &button->base : NULL;
+}
+
+ui_widget_t *ui_button_widget_mutable(ui_button_t *button)
+{
+    return button ? &button->base : NULL;
+}
