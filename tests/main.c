@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 typedef struct {
@@ -34,6 +35,34 @@ static const int cube_faces[6][4] = {
 
 static ui_color_t background_canvas[UI_FRAMEBUFFER_WIDTH * UI_FRAMEBUFFER_HEIGHT];
 static ui_color_t badge_stamp[32 * 16];
+
+#define PIXEL_GRID_WIDTH 16
+#define PIXEL_GRID_HEIGHT 16
+#define OVERLAY_TRANSPARENT ((ui_color_t)0xFFFF)
+#define TEXT_SPRITE_STR_MAX 128
+#define TEXT_SPRITE_WIDTH UI_FRAMEBUFFER_WIDTH
+#define TEXT_SPRITE_HEIGHT (BAREUI_FONT_HEIGHT)
+
+static ui_color_t pixel_grid_stamp[PIXEL_GRID_WIDTH * PIXEL_GRID_HEIGHT];
+static ui_color_t status_text_pixels[TEXT_SPRITE_WIDTH * TEXT_SPRITE_HEIGHT];
+static ui_color_t instruction_text_pixels[TEXT_SPRITE_WIDTH * TEXT_SPRITE_HEIGHT];
+static ui_color_t footer_text_pixels[TEXT_SPRITE_WIDTH * TEXT_SPRITE_HEIGHT];
+
+typedef struct {
+    ui_color_t *pixels;
+    int stride;
+    int width;
+    int height;
+    int x;
+    int y;
+    ui_color_t color;
+    int drawn_width;
+    char last_text[TEXT_SPRITE_STR_MAX];
+} text_sprite_t;
+
+static text_sprite_t status_sprite;
+static text_sprite_t instruction_sprite;
+static text_sprite_t footer_sprite;
 
 static ui_color_t mix_color(ui_color_t base, double brightness)
 {
@@ -67,8 +96,6 @@ static vertex3_t normalized_light_dir(void)
     }
     return dir;
 }
-
-static ui_color_t background_canvas[UI_FRAMEBUFFER_WIDTH * UI_FRAMEBUFFER_HEIGHT];
 
 static void build_background(ui_color_t *canvas)
 {
@@ -107,6 +134,153 @@ static void build_badge(ui_color_t *stamp, int width, int height)
     }
 }
 
+static void build_pixel_grid_stamp(ui_color_t *stamp, int width, int height)
+{
+    if (!stamp || width <= 0 || height <= 0) {
+        return;
+    }
+    const int cell_size = 2;
+    for (int y_cell = 0; y_cell < 8; ++y_cell) {
+        for (int x_cell = 0; x_cell < 8; ++x_cell) {
+            ui_color_t color = ((x_cell ^ y_cell) & 1) ? ui_color_from_hex(0xFF6B6B)
+                                                        : ui_color_from_hex(0x00A8A8);
+            for (int dy = 0; dy < cell_size; ++dy) {
+                for (int dx = 0; dx < cell_size; ++dx) {
+                    int px = x_cell * cell_size + dx;
+                    int py = y_cell * cell_size + dy;
+                    if (px >= width || py >= height) {
+                        continue;
+                    }
+                    stamp[py * width + px] = color;
+                }
+            }
+        }
+    }
+}
+
+static void text_sprite_init(text_sprite_t *sprite, ui_color_t *buffer, int width,
+                             int height, int x, int y, ui_color_t color)
+{
+    if (!sprite || !buffer || width <= 0 || height <= 0) {
+        return;
+    }
+    sprite->pixels = buffer;
+    sprite->stride = width;
+    sprite->width = width;
+    sprite->height = height;
+    sprite->x = x;
+    sprite->y = y;
+    sprite->color = color;
+    sprite->drawn_width = 0;
+    sprite->last_text[0] = '\0';
+    size_t area = (size_t)width * height;
+    for (size_t i = 0; i < area; ++i) {
+        buffer[i] = OVERLAY_TRANSPARENT;
+    }
+}
+
+static bool overlay_next_codepoint(const char **text, uint32_t *out)
+{
+    if (!text || !*text || !out) {
+        return false;
+    }
+    const unsigned char *ptr = (const unsigned char *)*text;
+    uint32_t cp = *ptr++;
+    if (cp < 0x80) {
+        *out = cp;
+        *text = (const char *)ptr;
+        return true;
+    }
+
+    int extra = 0;
+    if ((cp & 0xE0) == 0xC0) {
+        cp &= 0x1F;
+        extra = 1;
+    } else if ((cp & 0xF0) == 0xE0) {
+        cp &= 0x0F;
+        extra = 2;
+    } else if ((cp & 0xF8) == 0xF0) {
+        cp &= 0x07;
+        extra = 3;
+    } else {
+        return false;
+    }
+
+    for (int i = 0; i < extra; ++i) {
+        if ((ptr[i] & 0xC0) != 0x80) {
+            return false;
+        }
+        cp = (cp << 6) | (ptr[i] & 0x3F);
+    }
+
+    *text = (const char *)(ptr + extra);
+    *out = cp;
+    return true;
+}
+
+static void text_sprite_update(text_sprite_t *sprite, const char *text)
+{
+    if (!sprite || !sprite->pixels || !text) {
+        return;
+    }
+    if (strncmp(sprite->last_text, text, sizeof(sprite->last_text)) == 0) {
+        return;
+    }
+    size_t area = (size_t)sprite->stride * sprite->height;
+    for (size_t i = 0; i < area; ++i) {
+        sprite->pixels[i] = OVERLAY_TRANSPARENT;
+    }
+    const bareui_font_t *font = bareui_font_default();
+    int cursor = 0;
+    const char *ptr = text;
+    uint32_t codepoint = 0;
+    while (cursor < sprite->width && overlay_next_codepoint(&ptr, &codepoint)) {
+        if (codepoint == '\n') {
+            cursor = 0;
+            continue;
+        }
+        bareui_font_glyph_t glyph;
+        if (!bareui_font_lookup(font, codepoint, &glyph)) {
+            continue;
+        }
+        for (uint8_t col = 0; col < glyph.width; ++col) {
+            uint8_t column = glyph.columns[col];
+            for (uint8_t row = 0; row < glyph.height; ++row) {
+                if (!(column & (1u << row))) {
+                    continue;
+                }
+                int px = cursor + col;
+                int py = row;
+                if (px < 0 || px >= sprite->width || py < 0 || py >= sprite->height) {
+                    continue;
+                }
+                sprite->pixels[py * sprite->stride + px] = sprite->color;
+            }
+        }
+        cursor += glyph.spacing;
+    }
+    sprite->drawn_width = cursor < sprite->width ? cursor : sprite->width;
+    strncpy(sprite->last_text, text, sizeof(sprite->last_text) - 1);
+    sprite->last_text[sizeof(sprite->last_text) - 1] = '\0';
+}
+
+static void text_sprite_draw(const text_sprite_t *sprite, ui_context_t *ctx)
+{
+    if (!sprite || !sprite->pixels || !ctx) {
+        return;
+    }
+    for (int row = 0; row < sprite->height; ++row) {
+        const ui_color_t *row_pixels = sprite->pixels + (size_t)row * sprite->stride;
+        for (int col = 0; col < sprite->drawn_width; ++col) {
+            ui_color_t pixel = row_pixels[col];
+            if (pixel == OVERLAY_TRANSPARENT) {
+                continue;
+            }
+            ui_context_set_pixel(ctx, sprite->x + col, sprite->y + row, pixel);
+        }
+    }
+}
+
 static void draw_demo_polygon(ui_context_t *ctx, double phase)
 {
     ui_point_t polygon[6];
@@ -114,7 +288,7 @@ static void draw_demo_polygon(ui_context_t *ctx, double phase)
     const double center_x = 76.0;
     const double center_y = 90.0;
     for (int i = 0; i < 6; ++i) {
-        double angle = phase + (double)i * 1.0471975512; /* 60 degrees */
+        double angle = phase + (double)i * 1.0471975512;
         polygon[i].x = (int16_t)(center_x + radius * cos(angle));
         polygon[i].y = (int16_t)(center_y + radius * sin(angle));
     }
@@ -123,18 +297,8 @@ static void draw_demo_polygon(ui_context_t *ctx, double phase)
 
 static void draw_pixel_grid(ui_context_t *ctx)
 {
-    const int offset_x = UI_FRAMEBUFFER_WIDTH - 64;
-    const int offset_y = 24;
-    for (int y = 0; y < 8; ++y) {
-        for (int x = 0; x < 8; ++x) {
-            ui_color_t color = ((x ^ y) & 1) ? ui_color_from_hex(0xFF6B6B) : ui_color_from_hex(0x00A8A8);
-            for (int dy = 0; dy < 2; ++dy) {
-                for (int dx = 0; dx < 2; ++dx) {
-                    ui_context_set_pixel(ctx, offset_x + x * 2 + dx, offset_y + y * 2 + dy, color);
-                }
-            }
-        }
-    }
+    ui_context_blit(ctx, pixel_grid_stamp, PIXEL_GRID_WIDTH, PIXEL_GRID_HEIGHT,
+                    UI_FRAMEBUFFER_WIDTH - 64, 24);
 }
 
 static void draw_cube(ui_context_t *ctx, double angle)
@@ -254,39 +418,111 @@ int main(void)
         return 1;
     }
 
-    bool running = true;
-
     build_background(background_canvas);
     build_badge(badge_stamp, 32, 16);
+    build_pixel_grid_stamp(pixel_grid_stamp, PIXEL_GRID_WIDTH, PIXEL_GRID_HEIGHT);
+    text_sprite_init(&status_sprite, status_text_pixels, TEXT_SPRITE_WIDTH, TEXT_SPRITE_HEIGHT,
+                     12, 12, ui_color_from_hex(0xFFE66D));
+    text_sprite_init(&instruction_sprite, instruction_text_pixels, TEXT_SPRITE_WIDTH,
+                     TEXT_SPRITE_HEIGHT, 12, 24, ui_color_from_hex(0xC7F9CC));
+    text_sprite_init(&footer_sprite, footer_text_pixels, TEXT_SPRITE_WIDTH, TEXT_SPRITE_HEIGHT,
+                     12, UI_FRAMEBUFFER_HEIGHT - 24, ui_color_from_hex(0xE8E8E8));
+    text_sprite_update(&instruction_sprite, "B=regenerate background · R=badge · Q=quit");
+    text_sprite_update(&footer_sprite, "BareUI demo: fonts · blit · polygon · cube");
+    ui_context_blit(ctx, background_canvas, UI_FRAMEBUFFER_WIDTH,
+                    UI_FRAMEBUFFER_HEIGHT, 0, 0);
+
+    bool running = true;
+    bool scroll_left = false;
+    bool scroll_right = false;
+    bool scroll_up = false;
+    bool scroll_down = false;
 
     while (running) {
         ui_event_t event;
         while (ui_context_poll_event(ctx, &event)) {
             if (event.type == UI_EVENT_QUIT) {
                 running = false;
-            }
-            if (event.type == UI_EVENT_KEY_DOWN) {
-                if (event.data.key.keycode == 'q' || event.data.key.keycode == 'Q') {
+            } else if (event.type == UI_EVENT_KEY_DOWN) {
+                switch (event.data.key.keycode) {
+                case 'a':
+                case 'A':
+                    scroll_left = true;
+                    break;
+                case 'd':
+                case 'D':
+                    scroll_right = true;
+                    break;
+                case 'w':
+                case 'W':
+                    scroll_up = true;
+                    break;
+                case 's':
+                case 'S':
+                    scroll_down = true;
+                    break;
+                case 'b':
+                case 'B':
+                    build_background(background_canvas);
+                    ui_context_blit(ctx, background_canvas, UI_FRAMEBUFFER_WIDTH,
+                                    UI_FRAMEBUFFER_HEIGHT, 0, 0);
+                    break;
+                case 'r':
+                case 'R':
+                    build_badge(badge_stamp, 32, 16);
+                    break;
+                case 'q':
+                case 'Q':
                     running = false;
+                    break;
+                default:
+                    break;
+                }
+            } else if (event.type == UI_EVENT_KEY_UP) {
+                switch (event.data.key.keycode) {
+                case 'a':
+                case 'A':
+                    scroll_left = false;
+                    break;
+                case 'd':
+                case 'D':
+                    scroll_right = false;
+                    break;
+                case 'w':
+                case 'W':
+                    scroll_up = false;
+                    break;
+                case 's':
+                case 'S':
+                    scroll_down = false;
+                    break;
+                default:
+                    break;
                 }
             }
         }
 
-        ui_context_blit(ctx, background_canvas, UI_FRAMEBUFFER_WIDTH,
-                        UI_FRAMEBUFFER_HEIGHT, 0, 0);
+        int scroll_dx = (int)scroll_right - (int)scroll_left;
+        int scroll_dy = (int)scroll_down - (int)scroll_up;
+        if (scroll_dx || scroll_dy) {
+            ui_context_scroll(ctx, scroll_dx, scroll_dy, ui_color_from_hex(0x040B16));
+        }
+
         double seconds = (double)clock() / CLOCKS_PER_SEC;
         draw_cube(ctx, seconds * 0.8);
         draw_demo_polygon(ctx, seconds * 0.7);
         draw_pixel_grid(ctx);
-        ui_context_draw_text(ctx, 12, UI_FRAMEBUFFER_HEIGHT - 24,
-                             "BareUI demo: fonts + blit + polygon + cube",
-                             ui_color_from_hex(0xE8E8E8));
-        ui_context_draw_text(ctx, 12, 12, "ASCII + кириллица: Пример текста",
-                             ui_color_from_hex(0xFFE66D));
-        ui_context_draw_text(ctx, 12, 26, "Пиксели и полигоны следуют:",
-                             ui_color_from_hex(0xC7F9CC));
+
+        char status[64];
+        snprintf(status, sizeof(status), "Scroll vector %d, %d (arrows move cache)",
+                 scroll_dx, scroll_dy);
+        text_sprite_update(&status_sprite, status);
+        text_sprite_draw(&status_sprite, ctx);
+        text_sprite_draw(&instruction_sprite, ctx);
+        text_sprite_draw(&footer_sprite, ctx);
         ui_context_blit(ctx, badge_stamp, 32, 16, UI_FRAMEBUFFER_WIDTH - 40,
                         UI_FRAMEBUFFER_HEIGHT - 24);
+
         ui_context_render(ctx);
 
         struct timespec wait = {0, 16 * 1000000};
