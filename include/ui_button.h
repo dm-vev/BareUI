@@ -34,6 +34,9 @@ ui_color_t ui_button_hover_color(const ui_button_t *button);
 void ui_button_set_pressed_color(ui_button_t *button, ui_color_t color);
 ui_color_t ui_button_pressed_color(const ui_button_t *button);
 
+void ui_button_set_filled_style(ui_button_t *button, ui_color_t background,
+                                ui_color_t hover, ui_color_t pressed);
+
 void ui_button_set_rtl(ui_button_t *button, bool rtl);
 bool ui_button_rtl(const ui_button_t *button);
 

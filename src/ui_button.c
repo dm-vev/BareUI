@@ -531,6 +531,36 @@ ui_color_t ui_button_pressed_color(const ui_button_t *button)
     return button ? button->pressed_color : 0;
 }
 
+void ui_button_set_filled_style(ui_button_t *button, ui_color_t background,
+                                ui_color_t hover, ui_color_t pressed)
+{
+    if (!button) {
+        return;
+    }
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = background;
+    style.foreground_color = ui_color_from_hex(0xFFFFFF);
+    style.accent_color = hover;
+    style.padding_left = style.padding_right = 12;
+    style.padding_top = style.padding_bottom = 6;
+    style.border_width = 0;
+    style.border_sides = 0;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x0A1625);
+    style.box_shadow.offset_x = 0;
+    style.box_shadow.offset_y = 2;
+    style.box_shadow.blur_radius = 4;
+    style.box_shadow.spread_radius = 1;
+    style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_WIDTH |
+                  UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
+    ui_widget_set_style(&button->base, &style);
+    ui_button_set_hover_color(button, hover);
+    ui_button_set_pressed_color(button, pressed);
+}
+
 void ui_button_set_autofocus(ui_button_t *button, bool autofocus)
 {
     if (button) {
