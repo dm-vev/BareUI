@@ -72,30 +72,15 @@ static bool ui_column_ensure_capacity(ui_column_t *column, size_t target)
 
 static const ui_style_t *ui_widget_style_safe(const ui_widget_t *widget)
 {
-    static const ui_style_t default_style = {
-        .background_color = 0,
-        .foreground_color = 0,
-        .border_color = 0,
-        .accent_color = 0,
-        .border_width = 0,
-        .border_radius = 0,
-        .padding_left = 0,
-        .padding_right = 0,
-        .padding_top = 0,
-        .padding_bottom = 0,
-        .margin_left = 0,
-        .margin_right = 0,
-        .margin_top = 0,
-        .margin_bottom = 0,
-        .shadow_enabled = false,
-        .shadow_offset_x = 0,
-        .shadow_offset_y = 0,
-        .shadow_color = 0,
-        .extra = NULL,
-        .extra_size = 0,
-        .custom_count = 0
-    };
     const ui_style_t *style = ui_widget_style(widget);
+    static const ui_style_t default_style = {
+        .border_sides = UI_BORDER_LEFT | UI_BORDER_TOP,
+        .border_width = 0,
+        .border_color = 0,
+        .box_shadow = {.enabled = false},
+        .custom_count = 0,
+        .flags = 0
+    };
     return style ? style : &default_style;
 }
 

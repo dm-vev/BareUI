@@ -26,8 +26,9 @@ void ui_style_init(ui_style_t *style)
     }
     memset(style, 0, sizeof(*style));
     style->border_width = 0;
-    style->border_radius = 0;
-    style->shadow_enabled = false;
+    style->border_sides = UI_BORDER_LEFT | UI_BORDER_TOP;
+    style->border_color = 0;
+    style->box_shadow.enabled = false;
     style->custom_count = 0;
     style->flags = 0;
 }

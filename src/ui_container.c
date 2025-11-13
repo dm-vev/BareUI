@@ -14,10 +14,12 @@ static const ui_style_t *ui_widget_style_safe(const ui_widget_t *widget)
 {
     const ui_style_t *style = ui_widget_style(widget);
     static const ui_style_t default_style = {
+        .border_sides = UI_BORDER_LEFT | UI_BORDER_TOP,
         .border_width = 0,
-        .border_radius = 0,
-        .shadow_enabled = false,
-        .custom_count = 0
+        .border_color = 0,
+        .box_shadow = {.enabled = false},
+        .custom_count = 0,
+        .flags = 0
     };
     return style ? style : &default_style;
 }

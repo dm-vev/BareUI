@@ -15,6 +15,7 @@ typedef struct {
     ui_text_t *status;
     ui_text_t *clock;
     ui_text_t *subtitle;
+    ui_text_t *detail;
     int color_index;
     double elapsed;
 } app_state_t;
@@ -50,13 +51,17 @@ static ui_button_t *make_button(const char *label)
     style.accent_color = ui_color_from_hex(0x5A9ADB);
     style.border_color = ui_color_from_hex(0x405070);
     style.border_width = 1;
-    style.shadow_enabled = true;
-    style.shadow_color = ui_color_from_hex(0x000000);
-    style.shadow_offset_x = 1;
-    style.shadow_offset_y = 1;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x0F1018);
+    style.box_shadow.offset_x = 1;
+    style.box_shadow.offset_y = 1;
+    style.box_shadow.spread_radius = 0;
+    style.box_shadow.blur_radius = 1;
+    style.border_sides = UI_BORDER_TOP | UI_BORDER_LEFT;
     style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
                   UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
-                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_SHADOW;
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BOX_SHADOW |
+                  UI_STYLE_FLAG_BORDER_SIDES;
     ui_widget_set_style(ui_button_widget_mutable(button), &style);
     ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, 20);
     return button;
@@ -88,15 +93,27 @@ static void update_status(app_state_t *app, const char *message)
     ui_text_set_value(app->status, message);
 }
 
+static void update_action_detail(app_state_t *app, const char *label)
+{
+    if (!app || !app->detail) {
+        return;
+    }
+    char buffer[64];
+    snprintf(buffer, sizeof(buffer), "Последнее действие: %s", label ? label : "—");
+    ui_text_set_value(app->detail, buffer);
+}
+
 static void on_action_click(ui_button_t *button, void *user_data)
 {
     app_state_t *app = user_data;
     if (!app) {
         return;
     }
+    const char *label = ui_button_text(button);
     char buffer[64];
-    snprintf(buffer, sizeof(buffer), "Action: %s", ui_button_text(button));
+    snprintf(buffer, sizeof(buffer), "Действие: %s", label ? label : "—");
     update_status(app, buffer);
+    update_action_detail(app, label);
 }
 
 static void on_theme_click(ui_button_t *button, void *user_data)
@@ -114,7 +131,8 @@ static void on_theme_click(ui_button_t *button, void *user_data)
     };
     app->color_index = (app->color_index + 1) % (int)(sizeof(palette) / sizeof(palette[0]));
     apply_column_style(app->column, palette[app->color_index]);
-    update_status(app, "Theme changed");
+    update_status(app, "Theme changed / Тема обновлена");
+    update_action_detail(app, "Смена темы");
 }
 
 static bool app_tick(ui_scene_t *scene, double delta)
@@ -147,6 +165,7 @@ int main(void)
         .status = NULL,
         .clock = NULL,
         .subtitle = NULL,
+        .detail = NULL,
         .color_index = 0,
         .elapsed = 0.0,
     };
@@ -164,19 +183,29 @@ int main(void)
     ui_text_t *header = make_text("BareUI Widgets Showcase", ui_color_from_hex(0xFFD166),
                                   ui_color_from_hex(0x1E1A2F));
     ui_text_set_font(header, bareui_font_default());
-    app.subtitle = make_text("Styles, rows, columns, buttons, scroll, and events.", ui_color_from_hex(0xF4F4F4),
+    app.subtitle = make_text("Styles, rows, columns, buttons, scroll, and events. / Стили, строки, колонки, кнопки, прокрутка и события.",
+                             ui_color_from_hex(0xF4F4F4),
                              ui_color_from_hex(0x1E1A2F));
     ui_column_add_control(app.column, ui_text_widget_mutable(header), false, "header");
     ui_column_add_control(app.column, ui_text_widget_mutable(app.subtitle), false, "subtitle");
 
     ui_column_set_spacing(app.column, 8);
+    app.detail = make_text("Последнее действие: не выбрано.", ui_color_from_hex(0xC8EAFB),
+                           ui_color_from_hex(0x1E1A2F));
+    ui_text_set_font(app.detail, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(app.detail), false, "detail");
+    ui_text_t *language_sample = make_text(
+        "Русский язык поддерживается — BareUI может отображать кириллицу.", ui_color_from_hex(0xB2FFE1),
+        ui_color_from_hex(0x1E1A2F));
+    ui_text_set_font(language_sample, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(language_sample), false, "language");
 
     ui_row_t *actions = ui_row_create();
     ui_row_set_spacing(actions, 6);
     ui_widget_set_bounds(ui_row_widget_mutable(actions), 0, 0, UI_FRAMEBUFFER_WIDTH, 26);
-    ui_button_t *btn1 = make_button("Launch");
-    ui_button_t *btn2 = make_button("Compose");
-    ui_button_t *btn3 = make_button("Inspect history");
+    ui_button_t *btn1 = make_button("Запустить");
+    ui_button_t *btn2 = make_button("Создать");
+    ui_button_t *btn3 = make_button("История");
     ui_button_set_on_click(btn1, on_action_click, &app);
     ui_button_set_on_click(btn2, on_action_click, &app);
     ui_button_set_on_click(btn3, on_action_click, &app);
@@ -186,7 +215,7 @@ int main(void)
     ui_row_add_control(actions, ui_button_widget_mutable(btn3), true, "btn3");
     ui_column_add_control(app.column, ui_row_widget_mutable(actions), false, "row_actions");
 
-    ui_button_t *theme_btn = make_button("Cycle Theme");
+    ui_button_t *theme_btn = make_button("Сменить тему");
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
     ui_row_t *theme_row = ui_row_create();
     ui_row_set_spacing(theme_row, 4);
@@ -220,6 +249,8 @@ int main(void)
     ui_column_destroy(app.column);
     ui_text_destroy(header);
     ui_text_destroy(app.subtitle);
+    ui_text_destroy(app.detail);
+    ui_text_destroy(language_sample);
     ui_text_destroy(app.status);
     ui_text_destroy(app.clock);
     ui_button_destroy(btn1);

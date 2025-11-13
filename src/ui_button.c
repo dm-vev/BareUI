@@ -43,6 +43,8 @@ struct ui_button {
     void *on_blur_data;
     ui_button_event_fn on_long_press;
     void *on_long_press_data;
+    int border_sides;
+    ui_box_shadow_t box_shadow;
 };
 
 static inline bool ui_button_contains(const ui_button_t *button, int x, int y)
@@ -143,6 +145,12 @@ static void ui_button_apply_style(ui_widget_t *widget, const ui_style_t *style)
     }
     if (style->flags & UI_STYLE_FLAG_BORDER_WIDTH) {
         button->border_width = style->border_width;
+    }
+    if (style->flags & UI_STYLE_FLAG_BORDER_SIDES) {
+        button->border_sides = style->border_sides;
+    }
+    if (style->flags & UI_STYLE_FLAG_BOX_SHADOW) {
+        button->box_shadow = style->box_shadow;
     }
 }
 
@@ -275,33 +283,42 @@ static bool ui_button_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
         return false;
     }
     const ui_style_t *style = &button->base.style;
-    ui_shadow_t shadow = {
-        .enabled = style->shadow_enabled,
-        .offset_x = style->shadow_offset_x,
-        .offset_y = style->shadow_offset_y,
-        .color = style->shadow_color ? style->shadow_color : ui_color_from_hex(0x000000),
-        .blur = 0
-    };
-    ui_shadow_render(ctx, bounds, &shadow);
+    const ui_box_shadow_t *shadow = &button->box_shadow;
+    if (style->flags & UI_STYLE_FLAG_BOX_SHADOW) {
+        shadow = &style->box_shadow;
+    }
+    ui_shadow_render(ctx, bounds, shadow);
     ui_context_fill_rect(ctx, bounds->x, bounds->y, bounds->width, bounds->height,
                          ui_button_background(button));
     int border_width = button->border_width;
     if (style->flags & UI_STYLE_FLAG_BORDER_WIDTH) {
         border_width = style->border_width;
     }
-    if (border_width > 0) {
+    int border_sides = button->border_sides;
+    if (style->flags & UI_STYLE_FLAG_BORDER_SIDES) {
+        border_sides = style->border_sides;
+    }
+    if (border_width > 0 && border_sides) {
         ui_color_t border = (style->flags & UI_STYLE_FLAG_BORDER_COLOR)
                                 ? style->border_color
                                 : button->border_color;
         for (int w = 0; w < border_width; ++w) {
-            int x = bounds->x + w;
-            int y = bounds->y + w;
+            int x0 = bounds->x + w;
+            int y0 = bounds->y + w;
             int width = bounds->width - w * 2;
             int height = bounds->height - w * 2;
-            ui_context_fill_rect(ctx, x, y, width, 1, border);
-            ui_context_fill_rect(ctx, x, y + height - 1, width, 1, border);
-            ui_context_fill_rect(ctx, x, y, 1, height, border);
-            ui_context_fill_rect(ctx, x + width - 1, y, 1, height, border);
+            if (border_sides & UI_BORDER_TOP) {
+                ui_context_fill_rect(ctx, x0, y0, width, 1, border);
+            }
+            if (border_sides & UI_BORDER_BOTTOM) {
+                ui_context_fill_rect(ctx, x0, y0 + height - 1, width, 1, border);
+            }
+            if (border_sides & UI_BORDER_LEFT) {
+                ui_context_fill_rect(ctx, x0, y0, 1, height, border);
+            }
+            if (border_sides & UI_BORDER_RIGHT) {
+                ui_context_fill_rect(ctx, x0 + width - 1, y0, 1, height, border);
+            }
         }
     }
     int text_width = ui_button_measure_text(button);
@@ -393,12 +410,16 @@ void ui_button_init(ui_button_t *button)
     default_style.border_color = button->border_color;
     default_style.flags |= UI_STYLE_FLAG_BORDER_COLOR;
     default_style.border_width = 2;
-    default_style.flags |= UI_STYLE_FLAG_BORDER_WIDTH;
-    default_style.shadow_enabled = true;
-    default_style.shadow_color = ui_color_from_hex(0x050711);
-    default_style.shadow_offset_x = 1;
-    default_style.shadow_offset_y = 1;
-    default_style.flags |= UI_STYLE_FLAG_SHADOW;
+    default_style.border_sides = UI_BORDER_TOP | UI_BORDER_LEFT;
+    default_style.flags |= UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES;
+    default_style.box_shadow.enabled = true;
+    default_style.box_shadow.color = ui_color_from_hex(0x050711);
+    default_style.box_shadow.offset_x = 1;
+    default_style.box_shadow.offset_y = 1;
+    default_style.box_shadow.blur_radius = 2;
+    default_style.box_shadow.spread_radius = 1;
+    default_style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
+    default_style.flags |= UI_STYLE_FLAG_BOX_SHADOW;
     ui_widget_set_style(&button->base, &default_style);
 }
 
