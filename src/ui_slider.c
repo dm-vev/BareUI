@@ -374,6 +374,9 @@ static void ui_slider_draw_value_indicator(ui_context_t *ctx, const ui_slider_t 
         indicator_x = bounds->x;
     }
     int max_x = bounds->x + bounds->width - indicator_width;
+    if (max_x < bounds->x) {
+        max_x = bounds->x;
+    }
     if (indicator_x > max_x) {
         indicator_x = max_x;
     }

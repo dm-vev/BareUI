@@ -503,11 +503,6 @@ void ui_switch_set_active_track_color(ui_switch_t *sw, ui_color_t color)
     }
     ui_switch_t *impl = (ui_switch_t *)sw;
     impl->active_track_color = color;
-    ui_style_t *style = &impl->base.style;
-    style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
-    if (impl->base.ops && impl->base.ops->style_changed) {
-        impl->base.ops->style_changed(&impl->base, style);
-    }
 }
 
 ui_color_t ui_switch_active_track_color(const ui_switch_t *sw)
@@ -522,11 +517,6 @@ void ui_switch_set_inactive_track_color(ui_switch_t *sw, ui_color_t color)
     }
     ui_switch_t *impl = (ui_switch_t *)sw;
     impl->inactive_track_color = color;
-    ui_style_t *style = &impl->base.style;
-    style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
-    if (impl->base.ops && impl->base.ops->style_changed) {
-        impl->base.ops->style_changed(&impl->base, style);
-    }
 }
 
 ui_color_t ui_switch_inactive_track_color(const ui_switch_t *sw)
@@ -541,11 +531,6 @@ void ui_switch_set_inactive_thumb_color(ui_switch_t *sw, ui_color_t color)
     }
     ui_switch_t *impl = (ui_switch_t *)sw;
     impl->inactive_thumb_color = color;
-    ui_style_t *style = &impl->base.style;
-    style->flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
-    if (impl->base.ops && impl->base.ops->style_changed) {
-        impl->base.ops->style_changed(&impl->base, style);
-    }
 }
 
 ui_color_t ui_switch_inactive_thumb_color(const ui_switch_t *sw)
