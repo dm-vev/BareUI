@@ -28,44 +28,6 @@ struct ui_text_utf8_reader {
     size_t remaining;
 };
 
-static bool ui_text_next_codepoint(const char *str, size_t len, size_t *offset, uint32_t *out)
-{
-    if (!str || !offset || *offset >= len) {
-        return false;
-    }
-    const unsigned char first = (unsigned char)str[*offset];
-    uint32_t cp = first;
-    size_t advance = 1;
-    if (first < 0x80) {
-        /* ASCII */
-    } else if ((first & 0xE0) == 0xC0) {
-        cp = first & 0x1F;
-        advance = 2;
-    } else if ((first & 0xF0) == 0xE0) {
-        cp = first & 0x0F;
-        advance = 3;
-    } else if ((first & 0xF8) == 0xF0) {
-        cp = first & 0x07;
-        advance = 4;
-    } else {
-        return false;
-    }
-    if (*offset + advance > len) {
-        return false;
-    }
-    for (size_t i = 1; i < advance; ++i) {
-        unsigned char c = (unsigned char)str[*offset + i];
-        if ((c & 0xC0) != 0x80) {
-            return false;
-        }
-        cp = (cp << 6) | (c & 0x3F);
-    }
-    *offset += advance;
-    if (out) {
-        *out = cp;
-    }
-    return true;
-}
 
 static void ui_text_apply_style(ui_widget_t *widget, const ui_style_t *style)
 {
@@ -81,22 +43,43 @@ static void ui_text_apply_style(ui_widget_t *widget, const ui_style_t *style)
     }
 }
 
-static int ui_text_measure_line(const ui_text_t *text, const char *line, size_t len)
+static bool ui_text_read_codepoint(const char *str, size_t len, size_t offset, uint32_t *out,
+                                   size_t *advance)
 {
-    const bareui_font_t *font = text->font ? text->font : bareui_font_default();
-    size_t offset = 0;
-    int width = 0;
-    while (offset < len) {
-        uint32_t cp;
-        if (!ui_text_next_codepoint(line, len, &offset, &cp)) {
-            break;
-        }
-        bareui_font_glyph_t glyph;
-        if (bareui_font_lookup(font, cp, &glyph)) {
-            width += glyph.spacing;
-        }
+    if (!str || offset >= len || !advance) {
+        return false;
     }
-    return width;
+    const unsigned char first = (unsigned char)str[offset];
+    uint32_t cp = first;
+    size_t adv = 1;
+    if (first < 0x80) {
+    } else if ((first & 0xE0) == 0xC0) {
+        cp = first & 0x1F;
+        adv = 2;
+    } else if ((first & 0xF0) == 0xE0) {
+        cp = first & 0x0F;
+        adv = 3;
+    } else if ((first & 0xF8) == 0xF0) {
+        cp = first & 0x07;
+        adv = 4;
+    } else {
+        return false;
+    }
+    if (offset + adv > len) {
+        return false;
+    }
+    for (size_t i = 1; i < adv; ++i) {
+        unsigned char c = (unsigned char)str[offset + i];
+        if ((c & 0xC0) != 0x80) {
+            return false;
+        }
+        cp = (cp << 6) | (c & 0x3F);
+    }
+    *advance = adv;
+    if (out) {
+        *out = cp;
+    }
+    return true;
 }
 
 static char *ui_text_strdup(const char *src)
@@ -110,6 +93,68 @@ static char *ui_text_strdup(const char *src)
         memcpy(copy, src, len);
     }
     return copy;
+}
+
+static size_t ui_text_line_break(const ui_text_t *text, const char *line, size_t total_len,
+                                 size_t cursor, int max_width, size_t *out_newline)
+{
+    if (!text || cursor >= total_len) {
+        return total_len;
+    }
+    const bareui_font_t *font = text->font ? text->font : bareui_font_default();
+    size_t pos = cursor;
+    size_t last_space = cursor;
+    int width = 0;
+    *out_newline = cursor;
+
+    while (pos < total_len) {
+        if (line[pos] == '\n') {
+            *out_newline = pos;
+            return pos;
+        }
+        uint32_t cp;
+        size_t adv;
+        if (!ui_text_read_codepoint(line, total_len, pos, &cp, &adv)) {
+            break;
+        }
+        bareui_font_glyph_t glyph;
+        if (bareui_font_lookup(font, cp, &glyph)) {
+            width += glyph.spacing;
+        }
+        if (max_width > 0 && width > max_width) {
+            if (last_space > cursor) {
+                *out_newline = last_space;
+                return last_space;
+            }
+            *out_newline = pos;
+            return pos;
+        }
+        if (cp == ' ') {
+            last_space = pos;
+        }
+        pos += adv;
+    }
+    return pos;
+}
+
+static int ui_text_measure_line(const ui_text_t *text, const char *line, size_t len)
+{
+    const bareui_font_t *font = text->font ? text->font : bareui_font_default();
+    size_t offset = 0;
+    int width = 0;
+    while (offset < len) {
+        uint32_t cp;
+        size_t adv;
+        if (!ui_text_read_codepoint(line, len, offset, &cp, &adv)) {
+            break;
+        }
+        bareui_font_glyph_t glyph;
+        if (bareui_font_lookup(font, cp, &glyph)) {
+            width += glyph.spacing;
+        }
+        offset += adv;
+    }
+    return width;
 }
 
 static void ui_text_draw_line(ui_context_t *ctx, const ui_text_t *text, const char *line,
@@ -147,13 +192,14 @@ static bool ui_text_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect
     int line_height = (text->font ? text->font->height : BAREUI_FONT_HEIGHT) + text->line_spacing;
     int max_lines = text->max_lines > 0 ? text->max_lines : INT_MAX;
     while (cursor < total_len && drawn < max_lines) {
-        size_t end = cursor;
+        size_t newline_pos = cursor;
+        size_t end = newline_pos;
         if (!text->no_wrap) {
+            end = ui_text_line_break(text, start, total_len, cursor, bounds->width, &newline_pos);
+        } else {
             while (end < total_len && start[end] != '\n') {
                 ++end;
             }
-        } else {
-            end = total_len;
         }
         size_t line_len = end - cursor;
         if (line_len == 0 && start[cursor] == '\n') {

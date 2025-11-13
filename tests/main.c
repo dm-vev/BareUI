@@ -33,11 +33,12 @@ static ui_text_t *make_text(const char *value, ui_color_t fg, ui_color_t bg)
     style.flags |= UI_STYLE_FLAG_FOREGROUND_COLOR | UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_text_widget_mutable(text), &style);
     ui_text_set_value(text, value);
-    ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, BAREUI_FONT_HEIGHT + 4);
+    int text_height = BAREUI_FONT_HEIGHT * 2 + 8;
+    ui_widget_set_bounds(ui_text_widget_mutable(text), 0, 0, UI_FRAMEBUFFER_WIDTH, text_height);
     return text;
 }
 
-static ui_button_t *make_button(const char *label)
+static ui_button_t *make_button(const char *label, int pad_h, int pad_v, int fixed_height)
 {
     ui_button_t *button = ui_button_create();
     if (!button) {
@@ -49,6 +50,8 @@ static ui_button_t *make_button(const char *label)
     style.background_color = ui_color_from_hex(0x1F1F2B);
     style.foreground_color = ui_color_from_hex(0xF2F2F2);
     style.accent_color = ui_color_from_hex(0x5A9ADB);
+    style.padding_left = style.padding_right = pad_h;
+    style.padding_top = style.padding_bottom = pad_v;
     style.border_color = ui_color_from_hex(0x405070);
     style.border_width = 1;
     style.box_shadow.enabled = true;
@@ -63,7 +66,9 @@ static ui_button_t *make_button(const char *label)
                   UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BOX_SHADOW |
                   UI_STYLE_FLAG_BORDER_SIDES;
     ui_widget_set_style(ui_button_widget_mutable(button), &style);
-    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, 20);
+    int button_height = fixed_height > 0 ? fixed_height :
+                        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, button_height);
     return button;
 }
 
@@ -72,17 +77,22 @@ static void apply_column_style(ui_column_t *column, ui_color_t background)
     ui_style_t style;
     ui_style_init(&style);
     style.background_color = background;
+    style.padding_top = style.padding_bottom = 6;
     style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_column_widget_mutable(column), &style);
 }
 
-static void apply_row_style(ui_row_t *row, ui_color_t background)
+static void apply_row_style(ui_row_t *row, ui_color_t background, int pad_v, int fixed_height)
 {
     ui_style_t style;
     ui_style_init(&style);
     style.background_color = background;
+    style.padding_top = style.padding_bottom = pad_v;
     style.flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
     ui_widget_set_style(ui_row_widget_mutable(row), &style);
+    int row_height = fixed_height > 0 ? fixed_height :
+                     BAREUI_FONT_HEIGHT * 2 + style.padding_top + style.padding_bottom + 12;
+    ui_widget_set_bounds(ui_row_widget_mutable(row), 0, 0, UI_FRAMEBUFFER_WIDTH, row_height);
 }
 
 static void update_status(app_state_t *app, const char *message)
@@ -195,39 +205,36 @@ int main(void)
     ui_text_set_font(app.detail, bareui_font_default());
     ui_column_add_control(app.column, ui_text_widget_mutable(app.detail), false, "detail");
     ui_text_t *language_sample = make_text(
-        "Русский язык поддерживается — BareUI может отображать кириллицу.", ui_color_from_hex(0xB2FFE1),
+        "Русский язык поддерживается.", ui_color_from_hex(0xB2FFE1),
         ui_color_from_hex(0x1E1A2F));
     ui_text_set_font(language_sample, bareui_font_default());
     ui_column_add_control(app.column, ui_text_widget_mutable(language_sample), false, "language");
 
     ui_row_t *actions = ui_row_create();
     ui_row_set_spacing(actions, 6);
-    ui_widget_set_bounds(ui_row_widget_mutable(actions), 0, 0, UI_FRAMEBUFFER_WIDTH, 26);
-    ui_button_t *btn1 = make_button("Запустить");
-    ui_button_t *btn2 = make_button("Создать");
-    ui_button_t *btn3 = make_button("История");
+    ui_button_t *btn1 = make_button("Запустить", 10, 6, 0);
+    ui_button_t *btn2 = make_button("Создать", 10, 6, 0);
+    ui_button_t *btn3 = make_button("История", 10, 6, 0);
     ui_button_set_on_click(btn1, on_action_click, &app);
     ui_button_set_on_click(btn2, on_action_click, &app);
     ui_button_set_on_click(btn3, on_action_click, &app);
-    apply_row_style(actions, ui_color_from_hex(0x1E1A2F));
+    apply_row_style(actions, ui_color_from_hex(0x1E1A2F), 6, 40);
     ui_row_add_control(actions, ui_button_widget_mutable(btn1), true, "btn1");
     ui_row_add_control(actions, ui_button_widget_mutable(btn2), true, "btn2");
     ui_row_add_control(actions, ui_button_widget_mutable(btn3), true, "btn3");
     ui_column_add_control(app.column, ui_row_widget_mutable(actions), false, "row_actions");
 
-    ui_button_t *theme_btn = make_button("Сменить тему");
+    ui_button_t *theme_btn = make_button("Сменить тему", 10, 5, 32);
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
     ui_row_t *theme_row = ui_row_create();
     ui_row_set_spacing(theme_row, 4);
-    apply_row_style(theme_row, ui_color_from_hex(0x1E1A2F));
-    ui_widget_set_bounds(ui_row_widget_mutable(theme_row), 0, 0, UI_FRAMEBUFFER_WIDTH, 24);
+    apply_row_style(theme_row, ui_color_from_hex(0x1E1A2F), 5, 36);
     ui_row_add_control(theme_row, ui_button_widget_mutable(theme_btn), true, "theme");
     ui_column_add_control(app.column, ui_row_widget_mutable(theme_row), false, "row_theme");
 
     ui_row_t *stats = ui_row_create();
     ui_row_set_spacing(stats, 10);
-    apply_row_style(stats, ui_color_from_hex(0x1E1A2F));
-    ui_widget_set_bounds(ui_row_widget_mutable(stats), 0, 0, UI_FRAMEBUFFER_WIDTH, 24);
+    apply_row_style(stats, ui_color_from_hex(0x1E1A2F), 4, 32);
     app.status = make_text("Interactions will appear here.", ui_color_from_hex(0xFFFFFF),
                            ui_color_from_hex(0x1E1A2F));
     app.clock = make_text("Uptime 0.0 s", ui_color_from_hex(0xAACFFF),

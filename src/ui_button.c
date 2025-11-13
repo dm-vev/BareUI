@@ -112,7 +112,8 @@ static int ui_button_measure_text(const ui_button_t *button)
     return width;
 }
 
-static void ui_button_draw_text(ui_context_t *ctx, const ui_button_t *button, int x, int y)
+static void ui_button_draw_text(ui_context_t *ctx, const ui_button_t *button, int x, int y,
+                                ui_color_t color)
 {
     if (!button || !button->text) {
         return;
@@ -120,7 +121,7 @@ static void ui_button_draw_text(ui_context_t *ctx, const ui_button_t *button, in
     const bareui_font_t *font = button->font ? button->font : bareui_font_default();
     const bareui_font_t *prev = ui_context_font(ctx);
     ui_context_set_font(ctx, font);
-    ui_context_draw_text(ctx, x, y, button->text, button->text_color);
+    ui_context_draw_text(ctx, x, y, button->text, color);
     ui_context_set_font(ctx, prev);
 }
 
@@ -335,6 +336,12 @@ static bool ui_button_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
     if (button->rtl) {
         x = bounds->x + bounds->width - (x - bounds->x) - text_width;
     }
+    ui_color_t render_color = button->text_color;
+    if (button->pressed) {
+        render_color = ui_color_from_hex(0xA8D6FF);
+        y += 1;
+    }
+    ui_context_set_font(ctx, font);
     ui_button_draw_text(ctx, button, x, y);
     return true;
 }
