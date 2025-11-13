@@ -349,17 +349,17 @@ int main(void)
     ui_row_set_spacing(final_actions, 8);
     apply_row_style(final_actions, ui_color_from_hex(0x1E1A2F), 6, 48);
     ui_button_t *save_btn = make_filled_button("Сохранить",
-                                             ui_color_from_hex(0x1CC964),
-                                             ui_color_from_hex(0x4AD687),
-                                             ui_color_from_hex(0x14834D), 10, 6, 100);
+                                               ui_color_from_hex(0x1CC964),
+                                               ui_color_from_hex(0x4AD687),
+                                               ui_color_from_hex(0x14834D), 10, 6, 100);
     ui_button_t *join_btn = make_filled_button("Присоединиться",
-                                             ui_color_from_hex(0x7C4DFF),
-                                             ui_color_from_hex(0xA27EFF),
-                                             ui_color_from_hex(0x5B32B7), 10, 6, 100);
+                                               ui_color_from_hex(0x7C4DFF),
+                                               ui_color_from_hex(0xA27EFF),
+                                               ui_color_from_hex(0x5B32B7), 10, 6, 100);
     ui_button_t *confirm_btn = make_filled_button("Подтвердить",
-                                                ui_color_from_hex(0xFF6F43),
-                                                ui_color_from_hex(0xFFA07C),
-                                                ui_color_from_hex(0xC04832), 10, 6, 100);
+                                                  ui_color_from_hex(0xFF6F43),
+                                                  ui_color_from_hex(0xFFA07C),
+                                                  ui_color_from_hex(0xC04832), 10, 6, 100);
     ui_button_set_on_click(save_btn, on_action_click, &app);
     ui_button_set_on_click(join_btn, on_action_click, &app);
     ui_button_set_on_click(confirm_btn, on_action_click, &app);
@@ -408,6 +408,7 @@ int main(void)
     ui_row_destroy(actions);
     ui_row_destroy(outlined_row);
     ui_row_destroy(theme_row);
+    ui_row_destroy(final_actions);
     ui_row_destroy(elevated_row);
     ui_row_destroy(stats);
     ui_column_destroy(app.column);
@@ -415,6 +416,7 @@ int main(void)
     ui_text_destroy(app.subtitle);
     ui_text_destroy(app.detail);
     ui_text_destroy(language_sample);
+    ui_text_destroy(filled_hint);
     ui_text_destroy(outlined_caption);
     ui_text_destroy(elevated_note);
     ui_text_destroy(app.status);
@@ -424,6 +426,9 @@ int main(void)
     ui_button_destroy(btn3);
     ui_button_destroy(outlined_btn);
     ui_button_destroy(theme_btn);
+    ui_button_destroy(save_btn);
+    ui_button_destroy(join_btn);
+    ui_button_destroy(confirm_btn);
     ui_button_destroy(elevated_btn);
 
     return 0;
