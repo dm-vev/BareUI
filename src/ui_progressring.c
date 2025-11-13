@@ -175,7 +175,7 @@ static bool ui_progressring_render(ui_context_t *ctx, ui_widget_t *widget, const
     }
 
     if (sweep > UI_PROGRESSRING_TWO_PI) {
-        sweep = 2.0 * M_PI;
+        sweep = UI_PROGRESSRING_TWO_PI;
     }
     if (ring->stroke_cap == UI_STROKE_CAP_SQUARE && radius > 0.0) {
         double extension = half_stroke / radius;

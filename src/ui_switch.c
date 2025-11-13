@@ -40,7 +40,7 @@ struct ui_switch {
 
 static const ui_widget_ops_t ui_switch_ops;
 
-static bool ui_switch_contains(const ui_switch_impl_t *sw, int x, int y)
+static bool ui_switch_contains(const ui_switch_t *sw, int x, int y)
 {
     if (!sw) {
         return false;
@@ -86,7 +86,7 @@ static bool ui_switch_next_codepoint(const unsigned char **ptr, uint32_t *out)
     return true;
 }
 
-static int ui_switch_measure_label(const ui_switch_impl_t *sw)
+static int ui_switch_measure_label(const ui_switch_t *sw)
 {
     if (!sw || !sw->label || !*sw->label) {
         return 0;
@@ -120,7 +120,7 @@ static char *ui_switch_copy_label(const char *label)
     return copy;
 }
 
-static ui_color_t ui_switch_track_fill_color(const ui_switch_impl_t *sw)
+static ui_color_t ui_switch_track_fill_color(const ui_switch_t *sw)
 {
     if (!sw) {
         return 0;
@@ -140,7 +140,7 @@ static ui_color_t ui_switch_track_fill_color(const ui_switch_impl_t *sw)
     return sw->inactive_track_color ? sw->inactive_track_color : sw->track_color;
 }
 
-static ui_color_t ui_switch_thumb_fill_color(const ui_switch_impl_t *sw)
+static ui_color_t ui_switch_thumb_fill_color(const ui_switch_t *sw)
 {
     if (!sw) {
         return 0;
@@ -160,7 +160,7 @@ static ui_color_t ui_switch_thumb_fill_color(const ui_switch_impl_t *sw)
     return sw->thumb_color;
 }
 
-static void ui_switch_notify_hover(ui_switch_impl_t *sw, bool hovering)
+static void ui_switch_notify_hover(ui_switch_t *sw, bool hovering)
 {
     if (!sw || sw->hovered == hovering) {
         return;
@@ -168,7 +168,7 @@ static void ui_switch_notify_hover(ui_switch_impl_t *sw, bool hovering)
     sw->hovered = hovering;
 }
 
-static void ui_switch_notify_focus(ui_switch_impl_t *sw, bool focused)
+static void ui_switch_notify_focus(ui_switch_t *sw, bool focused)
 {
     if (!sw || sw->focused == focused) {
         return;
@@ -200,7 +200,7 @@ static void ui_switch_fill_circle(ui_context_t *ctx, int cx, int cy, int radius,
     }
 }
 
-static void ui_switch_draw_label(ui_context_t *ctx, const ui_switch_impl_t *sw, int x, int y,
+static void ui_switch_draw_label(ui_context_t *ctx, const ui_switch_t *sw, int x, int y,
                                  ui_color_t color)
 {
     if (!ctx || !sw || !sw->label || !*sw->label) {
@@ -218,7 +218,7 @@ static void ui_switch_apply_style(ui_widget_t *widget, const ui_style_t *style)
     if (!widget || !style) {
         return;
     }
-    ui_switch_impl_t *sw = (ui_switch_impl_t *)widget;
+    ui_switch_t *sw = (ui_switch_t *)widget;
     if (style->flags & UI_STYLE_FLAG_BACKGROUND_COLOR) {
         sw->track_color = style->background_color;
     }
@@ -238,7 +238,7 @@ static void ui_switch_apply_style(ui_widget_t *widget, const ui_style_t *style)
 
 static bool ui_switch_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect_t *bounds)
 {
-    ui_switch_impl_t *sw = (ui_switch_impl_t *)widget;
+    ui_switch_t *sw = (ui_switch_t *)widget;
     if (!sw || !bounds || bounds->width <= 0 || bounds->height <= 0) {
         return false;
     }
@@ -310,7 +310,7 @@ static bool ui_switch_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
 
 static bool ui_switch_handle_event(ui_widget_t *widget, const ui_event_t *event)
 {
-    ui_switch_impl_t *sw = (ui_switch_impl_t *)widget;
+    ui_switch_t *sw = (ui_switch_t *)widget;
     if (!sw || !event) {
         return false;
     }
@@ -377,7 +377,7 @@ static const ui_widget_ops_t ui_switch_ops = {
 
 ui_switch_t *ui_switch_create(void)
 {
-    ui_switch_impl_t *sw = calloc(1, sizeof(*sw));
+    ui_switch_t *sw = calloc(1, sizeof(*sw));
     if (!sw) {
         return NULL;
     }
@@ -390,7 +390,7 @@ void ui_switch_destroy(ui_switch_t *sw)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     free(impl->label);
     free(impl);
 }
@@ -400,7 +400,7 @@ void ui_switch_init(ui_switch_t *sw)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     memset(impl, 0, sizeof(*impl));
     ui_widget_init(&impl->base, &ui_switch_ops);
     impl->font = bareui_font_default();
@@ -442,7 +442,7 @@ void ui_switch_set_value(ui_switch_t *sw, bool value)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     if (impl->value == value) {
         return;
     }
@@ -454,7 +454,7 @@ void ui_switch_set_value(ui_switch_t *sw, bool value)
 
 bool ui_switch_value(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->value : false;
+    return sw ? ((const ui_switch_t *)sw)->value : false;
 }
 
 void ui_switch_set_enabled(ui_switch_t *sw, bool enabled)
@@ -462,7 +462,7 @@ void ui_switch_set_enabled(ui_switch_t *sw, bool enabled)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->enabled = enabled;
     if (!enabled) {
         impl->pressed = false;
@@ -473,7 +473,7 @@ void ui_switch_set_enabled(ui_switch_t *sw, bool enabled)
 
 bool ui_switch_enabled(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->enabled : false;
+    return sw ? ((const ui_switch_t *)sw)->enabled : false;
 }
 
 void ui_switch_set_active_color(ui_switch_t *sw, ui_color_t color)
@@ -481,7 +481,7 @@ void ui_switch_set_active_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->active_color = color;
     ui_style_t *style = &impl->base.style;
     style->accent_color = color;
@@ -493,7 +493,7 @@ void ui_switch_set_active_color(ui_switch_t *sw, ui_color_t color)
 
 ui_color_t ui_switch_active_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->active_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->active_color : 0;
 }
 
 void ui_switch_set_active_track_color(ui_switch_t *sw, ui_color_t color)
@@ -501,7 +501,7 @@ void ui_switch_set_active_track_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->active_track_color = color;
     ui_style_t *style = &impl->base.style;
     style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
@@ -512,7 +512,7 @@ void ui_switch_set_active_track_color(ui_switch_t *sw, ui_color_t color)
 
 ui_color_t ui_switch_active_track_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->active_track_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->active_track_color : 0;
 }
 
 void ui_switch_set_inactive_track_color(ui_switch_t *sw, ui_color_t color)
@@ -520,7 +520,7 @@ void ui_switch_set_inactive_track_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->inactive_track_color = color;
     ui_style_t *style = &impl->base.style;
     style->flags |= UI_STYLE_FLAG_BACKGROUND_COLOR;
@@ -531,7 +531,7 @@ void ui_switch_set_inactive_track_color(ui_switch_t *sw, ui_color_t color)
 
 ui_color_t ui_switch_inactive_track_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->inactive_track_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->inactive_track_color : 0;
 }
 
 void ui_switch_set_inactive_thumb_color(ui_switch_t *sw, ui_color_t color)
@@ -539,7 +539,7 @@ void ui_switch_set_inactive_thumb_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->inactive_thumb_color = color;
     ui_style_t *style = &impl->base.style;
     style->flags |= UI_STYLE_FLAG_FOREGROUND_COLOR;
@@ -550,7 +550,7 @@ void ui_switch_set_inactive_thumb_color(ui_switch_t *sw, ui_color_t color)
 
 ui_color_t ui_switch_inactive_thumb_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->inactive_thumb_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->inactive_thumb_color : 0;
 }
 
 void ui_switch_set_hover_color(ui_switch_t *sw, ui_color_t color)
@@ -558,13 +558,13 @@ void ui_switch_set_hover_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->hover_color = color;
 }
 
 ui_color_t ui_switch_hover_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->hover_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->hover_color : 0;
 }
 
 void ui_switch_set_focus_color(ui_switch_t *sw, ui_color_t color)
@@ -572,13 +572,13 @@ void ui_switch_set_focus_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->focus_color = color;
 }
 
 ui_color_t ui_switch_focus_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->focus_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->focus_color : 0;
 }
 
 void ui_switch_set_track_outline_color(ui_switch_t *sw, ui_color_t color)
@@ -586,7 +586,7 @@ void ui_switch_set_track_outline_color(ui_switch_t *sw, ui_color_t color)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->track_outline_color = color;
     ui_style_t *style = &impl->base.style;
     style->border_color = color;
@@ -598,7 +598,7 @@ void ui_switch_set_track_outline_color(ui_switch_t *sw, ui_color_t color)
 
 ui_color_t ui_switch_track_outline_color(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->track_outline_color : 0;
+    return sw ? ((const ui_switch_t *)sw)->track_outline_color : 0;
 }
 
 void ui_switch_set_track_outline_width(ui_switch_t *sw, int width)
@@ -606,7 +606,7 @@ void ui_switch_set_track_outline_width(ui_switch_t *sw, int width)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->track_outline_width = width >= 0 ? width : 0;
     ui_style_t *style = &impl->base.style;
     style->border_width = impl->track_outline_width;
@@ -618,7 +618,7 @@ void ui_switch_set_track_outline_width(ui_switch_t *sw, int width)
 
 int ui_switch_track_outline_width(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->track_outline_width : 0;
+    return sw ? ((const ui_switch_t *)sw)->track_outline_width : 0;
 }
 
 void ui_switch_set_label(ui_switch_t *sw, const char *label)
@@ -626,14 +626,14 @@ void ui_switch_set_label(ui_switch_t *sw, const char *label)
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     free(impl->label);
     impl->label = ui_switch_copy_label(label);
 }
 
 const char *ui_switch_label(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->label : NULL;
+    return sw ? ((const ui_switch_t *)sw)->label : NULL;
 }
 
 void ui_switch_set_label_position(ui_switch_t *sw, ui_switch_label_position_t position)
@@ -641,31 +641,31 @@ void ui_switch_set_label_position(ui_switch_t *sw, ui_switch_label_position_t po
     if (!sw) {
         return;
     }
-    ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+    ui_switch_t *impl = (ui_switch_t *)sw;
     impl->label_position = position;
 }
 
 ui_switch_label_position_t ui_switch_label_position(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->label_position : UI_SWITCH_LABEL_POSITION_RIGHT;
+    return sw ? ((const ui_switch_t *)sw)->label_position : UI_SWITCH_LABEL_POSITION_RIGHT;
 }
 
 void ui_switch_set_font(ui_switch_t *sw, const bareui_font_t *font)
 {
     if (sw) {
-        ((ui_switch_impl_t *)sw)->font = font ? font : bareui_font_default();
+        ((ui_switch_t *)sw)->font = font ? font : bareui_font_default();
     }
 }
 
 const bareui_font_t *ui_switch_font(const ui_switch_t *sw)
 {
-    return sw ? ((const ui_switch_impl_t *)sw)->font : NULL;
+    return sw ? ((const ui_switch_t *)sw)->font : NULL;
 }
 
 void ui_switch_set_on_change(ui_switch_t *sw, ui_switch_change_fn handler, void *user_data)
 {
     if (sw) {
-        ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+        ui_switch_t *impl = (ui_switch_t *)sw;
         impl->on_change = handler;
         impl->on_change_data = user_data;
     }
@@ -674,7 +674,7 @@ void ui_switch_set_on_change(ui_switch_t *sw, ui_switch_change_fn handler, void 
 void ui_switch_set_on_focus(ui_switch_t *sw, ui_switch_event_fn handler, void *user_data)
 {
     if (sw) {
-        ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+        ui_switch_t *impl = (ui_switch_t *)sw;
         impl->on_focus = handler;
         impl->on_focus_data = user_data;
     }
@@ -683,7 +683,7 @@ void ui_switch_set_on_focus(ui_switch_t *sw, ui_switch_event_fn handler, void *u
 void ui_switch_set_on_blur(ui_switch_t *sw, ui_switch_event_fn handler, void *user_data)
 {
     if (sw) {
-        ui_switch_impl_t *impl = (ui_switch_impl_t *)sw;
+        ui_switch_t *impl = (ui_switch_t *)sw;
         impl->on_blur = handler;
         impl->on_blur_data = user_data;
     }
@@ -691,10 +691,10 @@ void ui_switch_set_on_blur(ui_switch_t *sw, ui_switch_event_fn handler, void *us
 
 const ui_widget_t *ui_switch_widget(const ui_switch_t *sw)
 {
-    return sw ? &((const ui_switch_impl_t *)sw)->base : NULL;
+    return sw ? &((const ui_switch_t *)sw)->base : NULL;
 }
 
 ui_widget_t *ui_switch_widget_mutable(ui_switch_t *sw)
 {
-    return sw ? &((ui_switch_impl_t *)sw)->base : NULL;
+    return sw ? &((ui_switch_t *)sw)->base : NULL;
 }
