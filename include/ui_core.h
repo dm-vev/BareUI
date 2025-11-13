@@ -1,6 +1,7 @@
 #ifndef UI_CORE_H
 #define UI_CORE_H
 
+#include "ui_container.h"
 #include "ui_scene.h"
 
 /*
