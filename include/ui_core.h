@@ -5,6 +5,7 @@
 #include "ui_column.h"
 #include "ui_row.h"
 #include "ui_scene.h"
+#include "ui_text.h"
 
 /*
  * ui_core.h now represents the public entry point for the UI stack.
