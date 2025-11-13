@@ -16,6 +16,11 @@
 - `include/ui_hal_test.h` + `src/hal/hal_test_sdl.c` — десктопный HAL с 4× масштабированием framebuffer-а и эмуляцией тачскрина/клавиатуры через SDL2.
 - `tests/main.c` — новая демонстрационная сцена widgets: колонка, строки, текстовые блоки и кнопки, стилизованные через `ui_style_t` с on-click и clock-tick логикой.
 
+Outlined buttons are medium-emphasis controls for actions that are important but not the primary call to action. They rely on a thin border and transparent background so they can sit next to filled buttons as secondary alternatives; the demo in `tests/main.c` shows how to style them.
+
+## Button styles
+`ui_button` может имитировать разные стили, но для повышения читаемости важно выбирать их правильно. Первичная кнопка — это заполненный фон (filled tonal) без лишних теней, а elevated-кнопка просто добавляет к ней аккуратную тень. Чтобы тень не "ползла" по интерфейсу, применяйте такие кнопки только тогда, когда элемент должен визуально отделиться от текстурированного или узорного фона.
+
 ## Шрифтовая цепочка
 1. Откройте `tools/build_font.py`, укажите нужный TTF (`FONT_PATH`) и запустите `python tools/build_font.py > src/font/bareui_font_data.h` (нужен Python3 и библиотека Pillow).
 2. Векторный файл содержимого генерирует колонны 8×8 для каждого символа, включая `Ё/ё` и `А-Я/а-я`. Не забудьте перегенерировать шрифт после замены TTF или добавления символов.

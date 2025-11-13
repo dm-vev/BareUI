@@ -4,6 +4,7 @@
 #include "ui_scene.h"
 #include "ui_text.h"
 #include "ui_hal_test.h"
+#include "ui_shadow.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +70,99 @@ static ui_button_t *make_button(const char *label, int pad_h, int pad_v, int fix
     int button_height = fixed_height > 0 ? fixed_height :
                         BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
     ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 90, button_height);
+    return button;
+}
+
+static ui_button_t *make_elevated_button(const char *label)
+{
+    ui_button_t *button = ui_button_create();
+    if (!button) {
+        return NULL;
+    }
+    ui_button_set_text(button, label);
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = ui_color_from_hex(0x3E3A6F);
+    style.foreground_color = ui_color_from_hex(0xF7F7FF);
+    style.padding_left = style.padding_right = 12;
+    style.padding_top = style.padding_bottom = 6;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x05050E);
+    style.box_shadow.offset_x = 0;
+    style.box_shadow.offset_y = 3;
+    style.box_shadow.blur_radius = 4;
+    style.box_shadow.spread_radius = 1;
+    style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_BOX_SHADOW;
+    ui_widget_set_style(ui_button_widget_mutable(button), &style);
+    int button_height =
+        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 140, button_height);
+    return button;
+}
+
+static ui_button_t *make_filled_button(const char *label, ui_color_t background,
+                                       ui_color_t hover, ui_color_t pressed, int pad_h,
+                                       int pad_v, int fixed_width)
+{
+    ui_button_t *button = ui_button_create();
+    if (!button) {
+        return NULL;
+    }
+    ui_button_set_text(button, label);
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = background;
+    style.foreground_color = ui_color_from_hex(0xFFFFFF);
+    style.accent_color = hover;
+    style.padding_left = style.padding_right = pad_h;
+    style.padding_top = style.padding_bottom = pad_v;
+    style.border_width = 0;
+    style.border_sides = 0;
+    style.box_shadow.enabled = true;
+    style.box_shadow.color = ui_color_from_hex(0x0A1625);
+    style.box_shadow.offset_x = 0;
+    style.box_shadow.offset_y = 2;
+    style.box_shadow.blur_radius = 4;
+    style.box_shadow.spread_radius = 1;
+    style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_WIDTH |
+                  UI_STYLE_FLAG_BORDER_SIDES | UI_STYLE_FLAG_BOX_SHADOW;
+    ui_widget_set_style(ui_button_widget_mutable(button), &style);
+    ui_button_set_hover_color(button, hover);
+    ui_button_set_pressed_color(button, pressed);
+    int button_height = BAREUI_FONT_HEIGHT + pad_v * 2 + 8;
+    int button_width = fixed_width > 0 ? fixed_width : 120;
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, button_width, button_height);
+    return button;
+}
+
+static ui_button_t *make_outlined_button(const char *label, int pad_h, int pad_v, int fixed_height)
+{
+    ui_button_t *button = ui_button_create();
+    if (!button) {
+        return NULL;
+    }
+    ui_button_set_text(button, label);
+    ui_style_t style;
+    ui_style_init(&style);
+    style.background_color = ui_color_from_hex(0x1E1A2F);
+    style.foreground_color = ui_color_from_hex(0xA1D8FF);
+    style.accent_color = ui_color_from_hex(0x82C1FF);
+    style.border_color = ui_color_from_hex(0x5DA4FF);
+    style.border_width = 1;
+    style.padding_left = style.padding_right = pad_h;
+    style.padding_top = style.padding_bottom = pad_v;
+    style.border_sides = UI_BORDER_LEFT | UI_BORDER_TOP | UI_BORDER_RIGHT | UI_BORDER_BOTTOM;
+    style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
+                  UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_COLOR |
+                  UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES;
+    ui_widget_set_style(ui_button_widget_mutable(button), &style);
+    int button_height = fixed_height > 0 ? fixed_height :
+                        BAREUI_FONT_HEIGHT + style.padding_top + style.padding_bottom + 4;
+    ui_widget_set_bounds(ui_button_widget_mutable(button), 0, 0, 120, button_height);
     return button;
 }
 
@@ -219,10 +313,23 @@ int main(void)
     ui_button_set_on_click(btn2, on_action_click, &app);
     ui_button_set_on_click(btn3, on_action_click, &app);
     apply_row_style(actions, ui_color_from_hex(0x1E1A2F), 6, 40);
-    ui_row_add_control(actions, ui_button_widget_mutable(btn1), true, "btn1");
-    ui_row_add_control(actions, ui_button_widget_mutable(btn2), true, "btn2");
-    ui_row_add_control(actions, ui_button_widget_mutable(btn3), true, "btn3");
+    ui_row_add_control(actions, ui_button_widget_mutable(btn1), false, "btn1");
+    ui_row_add_control(actions, ui_button_widget_mutable(btn2), false, "btn2");
+    ui_row_add_control(actions, ui_button_widget_mutable(btn3), false, "btn3");
     ui_column_add_control(app.column, ui_row_widget_mutable(actions), false, "row_actions");
+
+    ui_text_t *outlined_caption = make_text(
+        "Outlined buttons mark medium-emphasis actions that complement filled controls.",
+        ui_color_from_hex(0xBCE0FF), ui_color_from_hex(0x1E1A2F));
+    ui_text_set_font(outlined_caption, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(outlined_caption), false, "outlined_caption");
+    ui_row_t *outlined_row = ui_row_create();
+    ui_row_set_spacing(outlined_row, 8);
+    apply_row_style(outlined_row, ui_color_from_hex(0x1E1A2F), 5, 36);
+    ui_button_t *outlined_btn = make_outlined_button("Подробнее", 12, 6, 0);
+    ui_button_set_on_click(outlined_btn, on_action_click, &app);
+    ui_row_add_control(outlined_row, ui_button_widget_mutable(outlined_btn), true, "btn_outlined");
+    ui_column_add_control(app.column, ui_row_widget_mutable(outlined_row), false, "row_outlined");
 
     ui_button_t *theme_btn = make_button("Сменить тему", 10, 5, 32);
     ui_button_set_on_click(theme_btn, on_theme_click, &app);
@@ -231,6 +338,23 @@ int main(void)
     apply_row_style(theme_row, ui_color_from_hex(0x1E1A2F), 5, 36);
     ui_row_add_control(theme_row, ui_button_widget_mutable(theme_btn), true, "theme");
     ui_column_add_control(app.column, ui_row_widget_mutable(theme_row), false, "row_theme");
+
+    ui_text_t *elevated_note = make_text(
+        "Elevated buttons are filled tonal buttons with a shadow. Use them only when "
+        "they must separate from patterned backgrounds.",
+        ui_color_from_hex(0xB6CCFF), ui_color_from_hex(0x141521));
+    ui_text_set_font(elevated_note, bareui_font_default());
+    ui_column_add_control(app.column, ui_text_widget_mutable(elevated_note), false,
+                         "elevated_note");
+    ui_button_t *elevated_btn = make_elevated_button("Elevated action");
+    ui_button_set_on_click(elevated_btn, on_action_click, &app);
+    ui_row_t *elevated_row = ui_row_create();
+    ui_row_set_spacing(elevated_row, 4);
+    apply_row_style(elevated_row, ui_color_from_hex(0x141523), 6, 44);
+    ui_row_add_control(elevated_row, ui_button_widget_mutable(elevated_btn), true,
+                       "elevated");
+    ui_column_add_control(app.column, ui_row_widget_mutable(elevated_row), false,
+                         "row_elevated");
 
     ui_row_t *stats = ui_row_create();
     ui_row_set_spacing(stats, 10);
@@ -251,19 +375,25 @@ int main(void)
 
     ui_scene_destroy(scene);
     ui_row_destroy(actions);
+    ui_row_destroy(outlined_row);
     ui_row_destroy(theme_row);
+    ui_row_destroy(elevated_row);
     ui_row_destroy(stats);
     ui_column_destroy(app.column);
     ui_text_destroy(header);
     ui_text_destroy(app.subtitle);
     ui_text_destroy(app.detail);
     ui_text_destroy(language_sample);
+    ui_text_destroy(outlined_caption);
+    ui_text_destroy(elevated_note);
     ui_text_destroy(app.status);
     ui_text_destroy(app.clock);
     ui_button_destroy(btn1);
     ui_button_destroy(btn2);
     ui_button_destroy(btn3);
+    ui_button_destroy(outlined_btn);
     ui_button_destroy(theme_btn);
+    ui_button_destroy(elevated_btn);
 
     return 0;
 }

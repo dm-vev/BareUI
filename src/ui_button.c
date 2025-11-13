@@ -341,8 +341,7 @@ static bool ui_button_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
         render_color = ui_color_from_hex(0xA8D6FF);
         y += 1;
     }
-    ui_context_set_font(ctx, font);
-    ui_button_draw_text(ctx, button, x, y);
+    ui_button_draw_text(ctx, button, x, y, render_color);
     return true;
 }
 
