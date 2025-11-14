@@ -1,6 +1,8 @@
 #ifndef UI_SLIDER_H
 #define UI_SLIDER_H
 
+#include "ui_mouse_cursor.h"
+
 #include "ui_widget.h"
 
 #include <stdbool.h>
@@ -9,13 +11,6 @@ typedef enum {
     UI_SLIDER_INTERACTION_TAP_AND_SLIDE,
     UI_SLIDER_INTERACTION_DRAG_ONLY
 } ui_slider_interaction_t;
-
-typedef enum {
-    UI_MOUSE_CURSOR_DEFAULT,
-    UI_MOUSE_CURSOR_POINTER,
-    UI_MOUSE_CURSOR_GRAB,
-    UI_MOUSE_CURSOR_MOVE
-} ui_mouse_cursor_t;
 
 typedef struct ui_slider ui_slider_t;
 
