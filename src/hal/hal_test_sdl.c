@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define UI_TEST_SCALE 4
+#define UI_TEST_SCALE 1
 #define UI_TEST_WIDTH (UI_FRAMEBUFFER_WIDTH * UI_TEST_SCALE)
 #define UI_TEST_HEIGHT (UI_FRAMEBUFFER_HEIGHT * UI_TEST_SCALE)
 

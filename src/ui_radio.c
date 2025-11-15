@@ -62,6 +62,7 @@ struct ui_radio_group {
 };
 
 static const ui_widget_ops_t ui_radio_ops;
+static void ui_radio_destroy_impl(ui_widget_t *widget);
 
 static bool ui_radio_platform_is_cupertino(void)
 {
