@@ -42,5 +42,6 @@ Use `ui_button_set_filled_style` to bootstrap that look on any button without re
 ```bash
 make
 ./tests/main
+./examples/tab_demo/tab_demo
 ```
 Окно 1280×960 (масштаб 4×) показывает framebuffer 320×240, мышь эмулирует сенсор, `q` закрывает. Русский текст демонстрирует поддержку кириллицы.

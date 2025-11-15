@@ -8,6 +8,13 @@
 
 #define UI_EVENT_QUEUE_SIZE 128
 
+typedef struct {
+    ui_rect_t rect;
+    bool enabled;
+} ui_clip_entry_t;
+
+#define UI_CLIP_STACK_DEPTH 32
+
 struct ui_context {
     ui_color_t framebuffer[UI_FRAMEBUFFER_WIDTH * UI_FRAMEBUFFER_HEIGHT];
     pthread_mutex_t fb_lock;
@@ -23,11 +30,42 @@ struct ui_context {
     int dirty_min_y;
     int dirty_max_x;
     int dirty_max_y;
+    ui_clip_entry_t clip_stack[UI_CLIP_STACK_DEPTH];
+    size_t clip_stack_top;
 };
+
+static inline const ui_clip_entry_t *ui_context_clip_top(const ui_context_t *ctx)
+{
+    if (!ctx || ctx->clip_stack_top == 0) {
+        return NULL;
+    }
+    return &ctx->clip_stack[ctx->clip_stack_top - 1];
+}
+
+static inline bool ui_context_point_visible(const ui_context_t *ctx, int x, int y)
+{
+    const ui_clip_entry_t *clip = ui_context_clip_top(ctx);
+    if (!clip || !clip->enabled) {
+        return true;
+    }
+    return x >= clip->rect.x && x < clip->rect.x + clip->rect.width &&
+           y >= clip->rect.y && y < clip->rect.y + clip->rect.height;
+}
+
+static inline bool ui_point_in_rect(const ui_rect_t *rect, int x, int y)
+{
+    if (!rect) {
+        return false;
+    }
+    return x >= rect->x && x < rect->x + rect->width && y >= rect->y && y < rect->y + rect->height;
+}
 
 static inline void ui_set_pixel_locked(ui_context_t *ctx, int x, int y, ui_color_t color)
 {
     if ((unsigned)x >= UI_FRAMEBUFFER_WIDTH || (unsigned)y >= UI_FRAMEBUFFER_HEIGHT) {
+        return;
+    }
+    if (!ui_context_point_visible(ctx, x, y)) {
         return;
     }
     ctx->framebuffer[y * UI_FRAMEBUFFER_WIDTH + x] = color;
@@ -176,6 +214,7 @@ ui_context_t *ui_context_create(const ui_hal_ops_t *hal)
     ctx->user_data = hal->user_data;
     ctx->font = bareui_font_default();
     ui_reset_dirty(ctx);
+    ctx->clip_stack_top = 0;
 
     if (!hal->init(ctx)) {
         pthread_mutex_destroy(&ctx->ev_lock);
@@ -213,6 +252,109 @@ void ui_context_clear(ui_context_t *ctx, ui_color_t color)
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
+static bool ui_context_clip_rect(ui_context_t *ctx, int *x0, int *y0, int *x1, int *y1)
+{
+    if (!ctx || !x0 || !y0 || !x1 || !y1) {
+        return false;
+    }
+    const ui_clip_entry_t *clip = ui_context_clip_top(ctx);
+    if (!clip || !clip->enabled) {
+        return true;
+    }
+    if (*x1 <= clip->rect.x || *y1 <= clip->rect.y ||
+        *x0 >= clip->rect.x + clip->rect.width ||
+        *y0 >= clip->rect.y + clip->rect.height) {
+        return false;
+    }
+    if (*x0 < clip->rect.x) {
+        *x0 = clip->rect.x;
+    }
+    if (*y0 < clip->rect.y) {
+        *y0 = clip->rect.y;
+    }
+    if (*x1 > clip->rect.x + clip->rect.width) {
+        *x1 = clip->rect.x + clip->rect.width;
+    }
+    if (*y1 > clip->rect.y + clip->rect.height) {
+        *y1 = clip->rect.y + clip->rect.height;
+    }
+    return true;
+}
+
+void ui_context_push_clip(ui_context_t *ctx, const ui_rect_t *bounds)
+{
+    if (!ctx || !bounds) {
+        return;
+    }
+    if (ctx->clip_stack_top >= UI_CLIP_STACK_DEPTH) {
+        return;
+    }
+    ui_clip_entry_t entry = {{0}, false};
+    ui_rect_t clip = *bounds;
+    if (clip.width <= 0 || clip.height <= 0) {
+        entry.enabled = false;
+    } else {
+        int x0 = clip.x;
+        int y0 = clip.y;
+        int x1 = clip.x + clip.width;
+        int y1 = clip.y + clip.height;
+        if (x0 < 0) {
+            x0 = 0;
+        }
+        if (y0 < 0) {
+            y0 = 0;
+        }
+        if (x1 > UI_FRAMEBUFFER_WIDTH) {
+            x1 = UI_FRAMEBUFFER_WIDTH;
+        }
+        if (y1 > UI_FRAMEBUFFER_HEIGHT) {
+            y1 = UI_FRAMEBUFFER_HEIGHT;
+        }
+        if (x1 > x0 && y1 > y0) {
+            clip.x = x0;
+            clip.y = y0;
+            clip.width = x1 - x0;
+            clip.height = y1 - y0;
+            const ui_clip_entry_t *parent = ui_context_clip_top(ctx);
+            if (parent && parent->enabled) {
+                int px0 = parent->rect.x;
+                int py0 = parent->rect.y;
+                int px1 = parent->rect.x + parent->rect.width;
+                int py1 = parent->rect.y + parent->rect.height;
+                if (clip.x < px0) {
+                    clip.x = px0;
+                }
+                if (clip.y < py0) {
+                    clip.y = py0;
+                }
+                if (clip.x + clip.width > px1) {
+                    clip.width = px1 - clip.x;
+                }
+                if (clip.y + clip.height > py1) {
+                    clip.height = py1 - clip.y;
+                }
+            }
+            if (clip.width > 0 && clip.height > 0) {
+                entry.rect = clip;
+                entry.enabled = true;
+            }
+        }
+    }
+    if (!entry.enabled) {
+        entry.rect = *bounds;
+        entry.enabled = false;
+    }
+    ctx->clip_stack[ctx->clip_stack_top++] = entry;
+}
+
+void ui_context_pop_clip(ui_context_t *ctx)
+{
+    if (!ctx || ctx->clip_stack_top == 0) {
+        return;
+    }
+    ctx->clip_stack_top--;
+}
+
 void ui_context_fill_rect(ui_context_t *ctx, int x, int y, int width, int height,
                           ui_color_t color)
 {
@@ -228,6 +370,9 @@ void ui_context_fill_rect(ui_context_t *ctx, int x, int y, int width, int height
     }
     if (y1 > UI_FRAMEBUFFER_HEIGHT) {
         y1 = UI_FRAMEBUFFER_HEIGHT;
+    }
+    if (!ui_context_clip_rect(ctx, &x0, &y0, &x1, &y1)) {
+        return;
     }
 
     pthread_mutex_lock(&ctx->fb_lock);
@@ -247,8 +392,10 @@ void ui_context_set_pixel(ui_context_t *ctx, int x, int y, ui_color_t color)
         return;
     }
     pthread_mutex_lock(&ctx->fb_lock);
-    ui_set_pixel_locked(ctx, x, y, color);
-    ui_mark_dirty_locked(ctx, x, y, 1, 1);
+    if (ui_context_point_visible(ctx, x, y)) {
+        ui_set_pixel_locked(ctx, x, y, color);
+        ui_mark_dirty_locked(ctx, x, y, 1, 1);
+    }
     pthread_mutex_unlock(&ctx->fb_lock);
 }
 
@@ -402,12 +549,6 @@ void ui_context_draw_polygon(ui_context_t *ctx, const ui_point_t *points,
         return;
     }
 
-    int filled_min_x = UI_FRAMEBUFFER_WIDTH;
-    int filled_max_x = -1;
-    int filled_min_y = UI_FRAMEBUFFER_HEIGHT;
-    int filled_max_y = -1;
-
-    pthread_mutex_lock(&ctx->fb_lock);
     for (int y = start_y; y <= end_y; ++y) {
         double scan_y = (double)y + 0.5;
         size_t hits = 0;
@@ -451,38 +592,9 @@ void ui_context_draw_polygon(ui_context_t *ctx, const ui_point_t *points,
                 x_start = x_end;
                 x_end = temp;
             }
-            if (x_end < 0 || x_start >= UI_FRAMEBUFFER_WIDTH) {
-                continue;
-            }
-            if (x_start < 0) {
-                x_start = 0;
-            }
-            if (x_end >= UI_FRAMEBUFFER_WIDTH) {
-                x_end = UI_FRAMEBUFFER_WIDTH - 1;
-            }
-            for (int x = x_start; x <= x_end; ++x) {
-                ui_set_pixel_locked(ctx, x, y, color);
-            }
-            if (x_start < filled_min_x) {
-                filled_min_x = x_start;
-            }
-            if (x_end > filled_max_x) {
-                filled_max_x = x_end;
-            }
-            if (y < filled_min_y) {
-                filled_min_y = y;
-            }
-            if (y > filled_max_y) {
-                filled_max_y = y;
-            }
+            ui_context_fill_rect(ctx, x_start, y, x_end - x_start + 1, 1, color);
         }
     }
-    if (filled_min_x <= filled_max_x && filled_min_y <= filled_max_y) {
-        ui_mark_dirty_locked(ctx, filled_min_x, filled_min_y,
-                             filled_max_x - filled_min_x + 1,
-                             filled_max_y - filled_min_y + 1);
-    }
-    pthread_mutex_unlock(&ctx->fb_lock);
     free(intersections);
 }
 

@@ -20,6 +20,8 @@ struct ui_column {
     bool wrap;
     bool tight;
     bool rtl;
+    bool dragging;
+    int last_touch_y;
     int spacing;
     int run_spacing;
     int on_scroll_interval;
@@ -31,6 +33,14 @@ struct ui_column {
 };
 
 static const int SCROLL_INTERVAL_DEFAULT = 10;
+
+static bool ui_rect_contains_point(const ui_rect_t *rect, int x, int y)
+{
+    if (!rect) {
+        return false;
+    }
+    return x >= rect->x && x < rect->x + rect->width && y >= rect->y && y < rect->y + rect->height;
+}
 
 static bool ui_widget_add_child_last(ui_widget_t *parent, ui_widget_t *child)
 {
@@ -255,6 +265,52 @@ static void ui_column_layout(ui_column_t *column, const ui_rect_t *bounds)
     }
 }
 
+static bool ui_column_handle_event(ui_widget_t *widget, const ui_event_t *event)
+{
+    if (!widget || !event) {
+        return false;
+    }
+    ui_column_t *column = (ui_column_t *)widget;
+    if (column->scroll_mode != UI_SCROLL_MODE_ENABLED) {
+        return false;
+    }
+    const ui_rect_t *bounds = &widget->bounds;
+    switch (event->type) {
+    case UI_EVENT_TOUCH_DOWN:
+        if (ui_rect_contains_point(bounds, event->data.touch.x, event->data.touch.y)) {
+            column->dragging = true;
+            column->last_touch_y = event->data.touch.y;
+            return true;
+        }
+        break;
+    case UI_EVENT_TOUCH_MOVE:
+        if (!column->dragging) {
+            return false;
+        }
+        if (column->max_scroll_offset <= 0) {
+            column->last_touch_y = event->data.touch.y;
+            return true;
+        }
+        {
+            int delta = column->last_touch_y - event->data.touch.y;
+            column->last_touch_y = event->data.touch.y;
+            if (delta != 0) {
+                column->scroll_offset = ui_column_clamp_scroll(column, column->scroll_offset + delta);
+            }
+        }
+        return true;
+    case UI_EVENT_TOUCH_UP:
+        if (column->dragging) {
+            column->dragging = false;
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+    return false;
+}
+
 static bool ui_column_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect_t *bounds)
 {
     ui_column_t *column = (ui_column_t *)widget;
@@ -270,7 +326,7 @@ static bool ui_column_render(ui_context_t *ctx, ui_widget_t *widget, const ui_re
 
 static const ui_widget_ops_t ui_column_ops = {
     .render = ui_column_render,
-    .handle_event = NULL,
+    .handle_event = ui_column_handle_event,
     .destroy = NULL
 };
 
@@ -311,6 +367,8 @@ void ui_column_init(ui_column_t *column)
     column->on_scroll_interval = SCROLL_INTERVAL_DEFAULT;
     column->scroll_offset = 0;
     column->auto_scroll = false;
+    column->dragging = false;
+    column->last_touch_y = 0;
 }
 
 bool ui_column_add_control(ui_column_t *column, ui_widget_t *control, bool expand, const char *key)
@@ -413,6 +471,7 @@ void ui_column_set_scroll_mode(ui_column_t *column, ui_scroll_mode_t mode)
         column->scroll_mode = mode;
         if (mode == UI_SCROLL_MODE_NONE) {
             column->scroll_offset = 0;
+            column->dragging = false;
         } else {
             column->scroll_offset = ui_column_clamp_scroll(column, column->scroll_offset);
         }

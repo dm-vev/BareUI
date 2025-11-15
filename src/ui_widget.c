@@ -151,17 +151,24 @@ void ui_widget_remove_child(ui_widget_t *child)
     child->next_sibling = NULL;
 }
 
-void ui_widget_render_tree(ui_widget_t *root, ui_context_t *ctx)
+static void ui_widget_render_tree_internal(ui_widget_t *widget, ui_context_t *ctx)
 {
-    if (!root || !ctx || !root->visible) {
+    if (!widget || !ctx || !widget->visible) {
         return;
     }
-    if (root->ops && root->ops->render) {
-        root->ops->render(ctx, root, &root->bounds);
+    ui_context_push_clip(ctx, &widget->bounds);
+    if (widget->ops && widget->ops->render) {
+        widget->ops->render(ctx, widget, &widget->bounds);
     }
-    for (ui_widget_t *child = root->first_child; child; child = child->next_sibling) {
-        ui_widget_render_tree(child, ctx);
+    for (ui_widget_t *child = widget->first_child; child; child = child->next_sibling) {
+        ui_widget_render_tree_internal(child, ctx);
     }
+    ui_context_pop_clip(ctx);
+}
+
+void ui_widget_render_tree(ui_widget_t *root, ui_context_t *ctx)
+{
+    ui_widget_render_tree_internal(root, ctx);
 }
 
 bool ui_widget_dispatch_event(ui_widget_t *root, const ui_event_t *event)

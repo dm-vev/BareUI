@@ -88,6 +88,9 @@ bool ui_context_post_event(ui_context_t *ctx, const ui_event_t *event);
 
 void ui_context_render(ui_context_t *ctx);
 
+void ui_context_push_clip(ui_context_t *ctx, const ui_rect_t *bounds);
+void ui_context_pop_clip(ui_context_t *ctx);
+
 void *ui_context_user_data(ui_context_t *ctx);
 void ui_context_set_user_data(ui_context_t *ctx, void *data);
 
