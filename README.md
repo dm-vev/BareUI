@@ -16,6 +16,12 @@
 - `include/ui_hal_test.h` + `src/hal/hal_test_sdl.c` — десктопный HAL с 4× масштабированием framebuffer-а и эмуляцией тачскрина/клавиатуры через SDL2.
 - `tests/main.c` — новая демонстрационная сцена widgets: колонка, строки, текстовые блоки и кнопки, стилизованные через `ui_style_t` с on-click и clock-tick логикой.
 
+## System styles
+
+`include/ui_system_styles.h` теперь открывает четыре палитро-ориентированных системных стиля: `UI_SYSTEM_STYLE_AMETHYST` (Pale purple, Medium slate blue, Rebecca purple, Davy's gray, Dark purple), `UI_SYSTEM_STYLE_VERDANT` (Battleship gray, Ash gray, Tea green, Cream, Flax), `UI_SYSTEM_STYLE_DAWN` (Raisin black, Slate gray, Isabelline, Bone, Khaki) и `UI_SYSTEM_STYLE_CLASSIC` (Classic Noir — белый, черный и серые градации). Каждое состояние заполняет `ui_style_t` (фон, текст, акцент, рамка и тень) через `ui_system_style_fill`, а `ui_system_style_name` возвращает человекочитаемое название.
+
+Обновлённая демо-сцена `tests/main.c` теперь состоит из заголовка, блока статуса и единственной кнопки. Кнопка выводит имя текущего стиля в stdout, показывает его в UI и переключается на следующую палитру при каждом нажатии. Оболочка, заголовок и статус используют палитру Seashell / Champagne pink / Rosy brown / Bone / Redwood, чтобы все цвета пользователя также появились на экране.
+
 Outlined buttons are medium-emphasis controls for actions that are important but not the primary call to action. They rely on a thin border and transparent background so they can sit next to filled buttons as secondary alternatives; the demo in `tests/main.c` shows how to style them.
 
 ## Button styles

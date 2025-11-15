@@ -239,7 +239,8 @@ static bool ui_button_handle_event(ui_widget_t *widget, const ui_event_t *event)
     }
     case UI_EVENT_TOUCH_UP: {
         bool inside = ui_button_contains(button, event->data.touch.x, event->data.touch.y);
-        if (button->pressed && inside && button->on_click) {
+        bool was_pressed = button->pressed;
+        if (was_pressed && inside && button->on_click) {
             button->on_click(button, button->on_click_data);
         }
         button->pressed = false;
@@ -247,7 +248,7 @@ static bool ui_button_handle_event(ui_widget_t *widget, const ui_event_t *event)
         if (!inside) {
             ui_button_notify_focus(button, false);
         }
-        return true;
+        return inside || was_pressed;
     }
     case UI_EVENT_KEY_DOWN: {
         uint32_t key = event->data.key.keycode;
@@ -419,11 +420,11 @@ void ui_button_init(ui_button_t *button)
     default_style.border_sides = UI_BORDER_TOP | UI_BORDER_LEFT;
     default_style.flags |= UI_STYLE_FLAG_BORDER_WIDTH | UI_STYLE_FLAG_BORDER_SIDES;
     default_style.box_shadow.enabled = true;
-    default_style.box_shadow.color = ui_color_from_hex(0x050711);
-    default_style.box_shadow.offset_x = 1;
+    default_style.box_shadow.color = ui_color_from_hex(0xEED7C5);
+    default_style.box_shadow.offset_x = 0;
     default_style.box_shadow.offset_y = 1;
-    default_style.box_shadow.blur_radius = 2;
-    default_style.box_shadow.spread_radius = 1;
+    default_style.box_shadow.blur_radius = 1;
+    default_style.box_shadow.spread_radius = 0;
     default_style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
     default_style.flags |= UI_STYLE_FLAG_BOX_SHADOW;
     ui_widget_set_style(&button->base, &default_style);
@@ -547,11 +548,11 @@ void ui_button_set_filled_style(ui_button_t *button, ui_color_t background,
     style.border_width = 0;
     style.border_sides = 0;
     style.box_shadow.enabled = true;
-    style.box_shadow.color = ui_color_from_hex(0x0A1625);
+    style.box_shadow.color = ui_color_from_hex(0xEED7C5);
     style.box_shadow.offset_x = 0;
-    style.box_shadow.offset_y = 2;
-    style.box_shadow.blur_radius = 4;
-    style.box_shadow.spread_radius = 1;
+    style.box_shadow.offset_y = 1;
+    style.box_shadow.blur_radius = 1;
+    style.box_shadow.spread_radius = 0;
     style.box_shadow.blur_style = UI_SHADOW_BLUR_NORMAL;
     style.flags = UI_STYLE_FLAG_BACKGROUND_COLOR | UI_STYLE_FLAG_FOREGROUND_COLOR |
                   UI_STYLE_FLAG_ACCENT_COLOR | UI_STYLE_FLAG_BORDER_WIDTH |

@@ -157,6 +157,46 @@ static int ui_text_measure_line(const ui_text_t *text, const char *line, size_t 
     return width;
 }
 
+static int ui_text_count_lines(const ui_text_t *text, const char *start, size_t total_len,
+                               int max_lines, int width)
+{
+    if (!text || !start) {
+        return 0;
+    }
+    if (width <= 0) {
+        width = 1;
+    }
+    size_t cursor = 0;
+    int lines = 0;
+    while (cursor < total_len && lines < max_lines) {
+        size_t newline_pos = cursor;
+        size_t end = newline_pos;
+        if (!text->no_wrap) {
+            end = ui_text_line_break(text, start, total_len, cursor, width, &newline_pos);
+        } else {
+            while (end < total_len && start[end] != '\n') {
+                ++end;
+            }
+        }
+        size_t line_len = end - cursor;
+        if (line_len == 0 && start[cursor] == '\n') {
+            ++lines;
+            cursor = end + 1;
+            continue;
+        }
+        ++lines;
+        if (!text->no_wrap && end < total_len && start[end] == '\n') {
+            cursor = end + 1;
+        } else {
+            cursor = end;
+        }
+        if (text->no_wrap) {
+            break;
+        }
+    }
+    return lines;
+}
+
 static void ui_text_draw_line(ui_context_t *ctx, const ui_text_t *text, const char *line,
                               size_t len, int x, int y)
 {
@@ -191,6 +231,12 @@ static bool ui_text_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect
     int drawn = 0;
     int line_height = (text->font ? text->font->height : BAREUI_FONT_HEIGHT) + text->line_spacing;
     int max_lines = text->max_lines > 0 ? text->max_lines : INT_MAX;
+    int line_count = ui_text_count_lines(text, start, total_len, max_lines, bounds->width);
+    int content_height = line_count * line_height;
+    int vertical_offset = 0;
+    if (content_height < bounds->height) {
+        vertical_offset = (bounds->height - content_height) / 2;
+    }
     while (cursor < total_len && drawn < max_lines) {
         size_t newline_pos = cursor;
         size_t end = newline_pos;
@@ -217,7 +263,7 @@ static bool ui_text_render(ui_context_t *ctx, ui_widget_t *widget, const ui_rect
         if (text->rtl) {
             x_point = bounds->x + bounds->width - (x_point - bounds->x) - line_width;
         }
-        int y_point = bounds->y + drawn * line_height;
+        int y_point = bounds->y + vertical_offset + drawn * line_height;
         if (line_width > bounds->width && text->overflow == UI_TEXT_OVERFLOW_FADE) {
             /* fade effect not implemented yet; fallback to clip */
         }
